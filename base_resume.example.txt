@@ -1,0 +1,43 @@
+Sample Candidate
+sample.candidate@example.com
+(555) 010-1234
+Remote, USA
+https://github.com/sample-candidate
+https://www.linkedin.com/in/sample-candidate
+
+PROFESSIONAL SUMMARY
+Senior software engineer with experience building internal tools, backend services, and user-facing web applications. Strengths include Python, FastAPI, automation, documentation, and shipping maintainable systems with small teams.
+
+CORE SKILLS
+Python, FastAPI, JavaScript, React, SQL, PostgreSQL, REST APIs, automation, testing, documentation, Git, CI/CD
+
+PROFESSIONAL EXPERIENCE
+Principal Software Engineer
+Northwind Systems
+2022 - Present
+- Led delivery of internal workflow automation tools used by operations and recruiting teams.
+- Built Python and FastAPI services that reduced manual review time and improved data consistency.
+- Partnered with stakeholders to translate loosely defined processes into simple, maintainable software.
+
+Senior Software Engineer
+Contoso Labs
+2018 - 2022
+- Developed backend APIs and lightweight frontend tools for internal business systems.
+- Improved application reliability through better logging, testing, and deployment practices.
+- Mentored junior engineers and documented team processes for faster onboarding.
+
+Software Engineer
+Fabrikam Digital
+2014 - 2018
+- Built full-stack features for customer-facing web applications.
+- Wrote integration code for third-party APIs and internal reporting workflows.
+- Contributed to bug triage, code review, and release support.
+
+EDUCATION
+Bachelor of Science in Computer Science
+Sample State University
+
+SELECTED ACHIEVEMENTS
+- Reduced time spent on a high-volume manual workflow by building a lightweight automation service.
+- Standardized document generation outputs across multiple internal processes.
+- Improved handoff quality between data capture and downstream processing systems.

@@ -7,8 +7,9 @@ It matches keywords, highlights relevant skills, and reorders content for releva
 
 import os
 import time
-from anthropic import Anthropic
+
 import config
+from anthropic import Anthropic
 from loguru import logger
 
 
@@ -20,16 +21,114 @@ class ResumeTC:
         Initialize the tailor client.
         
         Args:
-            api_key: Claude API key (falls back to config.CLAUDE_API_KEY)
+            api_key: Optional Anthropic API key
             base_resume_text: Full text of your base resume
         """
-        self.api_key = api_key or config.CLAUDE_API_KEY
-        self.client = Anthropic(api_key=self.api_key)
+        self.api_key = self._resolve_api_key(api_key)
+        if not self.api_key:
+            raise ValueError(
+                "Anthropic API key not configured. Set ANTHROPIC_API_KEY "
+                "(preferred) or CLAUDE_API_KEY."
+            )
+
+        self.client = Anthropic(api_key=self.api_key, max_retries=0)
         self.base_resume = base_resume_text or ""
         self.model = config.CLAUDE_MODEL
         self.max_tokens = config.CLAUDE_MAX_TOKENS
         
         logger.info(f"ResumeTC initialized with model: {self.model}")
+
+    @staticmethod
+    def _clean_api_key(value):
+        """Return a stripped API key string or an empty string."""
+        return value.strip() if isinstance(value, str) else ""
+
+    @classmethod
+    def _resolve_api_key(cls, api_key=None):
+        """Resolve the API key with environment variables taking precedence."""
+        candidates = [
+            os.environ.get("ANTHROPIC_API_KEY"),
+            api_key,
+            getattr(config, "ANTHROPIC_API_KEY", ""),
+            os.environ.get("CLAUDE_API_KEY"),
+            getattr(config, "CLAUDE_API_KEY", ""),
+        ]
+
+        for candidate in candidates:
+            cleaned = cls._clean_api_key(candidate)
+            if cleaned:
+                return cleaned
+
+        return ""
+
+    @staticmethod
+    def _extract_text(response):
+        """Join all text blocks returned by Anthropic into a single string."""
+        text_blocks = []
+        for block in getattr(response, "content", []):
+            if getattr(block, "type", None) == "text" and getattr(block, "text", None):
+                text_blocks.append(block.text)
+
+        return "\n".join(text_blocks).strip()
+
+    @staticmethod
+    def _status_code_from_error(error):
+        """Extract an HTTP status code from Anthropic SDK errors when present."""
+        status_code = getattr(error, "status_code", None) or getattr(error, "status", None)
+        response = getattr(error, "response", None)
+        if status_code is None and response is not None:
+            status_code = getattr(response, "status_code", None) or getattr(response, "status", None)
+        return status_code
+
+    @classmethod
+    def _is_auth_error(cls, error):
+        """Detect authentication failures so we can skip retries."""
+        status_code = cls._status_code_from_error(error)
+        if status_code == 401:
+            return True
+
+        error_name = error.__class__.__name__.lower()
+        message = str(error).lower()
+        return "authentication" in error_name or "api key" in message
+
+    @classmethod
+    def _is_retryable_error(cls, error):
+        """Retry only transient transport and server-side failures."""
+        if cls._is_auth_error(error):
+            return False
+
+        status_code = cls._status_code_from_error(error)
+        if status_code in {408, 409, 429}:
+            return True
+        if isinstance(status_code, int) and status_code >= 500:
+            return True
+
+        error_name = error.__class__.__name__.lower()
+        retryable_names = {"apiconnectionerror", "apitimeouterror", "timeout", "connectionerror"}
+        if error_name in retryable_names:
+            return True
+
+        message = str(error).lower()
+        retryable_phrases = (
+            "timed out",
+            "timeout",
+            "connection",
+            "temporarily unavailable",
+            "rate limit",
+            "try again",
+        )
+        return any(phrase in message for phrase in retryable_phrases)
+
+    @staticmethod
+    def _authentication_help_text():
+        """Return a short remediation message for auth failures."""
+        return (
+            "Authentication failed. Confirm ANTHROPIC_API_KEY is valid and active. "
+            "PowerShell (current shell): "
+            "$env:ANTHROPIC_API_KEY = \"sk-ant-...\" | "
+            "Persist for current user: "
+            "[Environment]::SetEnvironmentVariable(\"ANTHROPIC_API_KEY\", \"sk-ant-...\", \"User\")"
+        )
     
     def set_base_resume(self, resume_text):
         """Update the base resume text."""
@@ -63,7 +162,8 @@ class ResumeTC:
         if not self.base_resume:
             raise ValueError("Base resume not set. Call set_base_resume() first.")
         
-        career_ctx = career_context or config.RESUME_CONTEXT
+        career_ctx = config.RESUME_CONTEXT if career_context is None else career_context
+        career_ctx = career_ctx.strip() if isinstance(career_ctx, str) else ""
         
         # System prompt: instructs Claude how to tailor
         system_prompt = """You are an expert resume writer and career coach.
@@ -134,25 +234,37 @@ Output the COMPLETE tailored resume in plain text (no markdown formatting).
                 system=system_prompt
             )
             
-            tailored_text = response.content[0].text
-            
-            logger.info(f"✓ Successfully tailored resume for: {job_title}")
+            tailored_text = self._extract_text(response)
+            if not tailored_text:
+                raise RuntimeError(f"Claude returned no text content for '{job_title}'.")
+
+            logger.info(f"Successfully tailored resume for: {job_title}")
             logger.debug(f"  Input tokens: {response.usage.input_tokens}")
             logger.debug(f"  Output tokens: {response.usage.output_tokens}")
+            if getattr(response, "_request_id", None):
+                logger.debug(f"  Request ID: {response._request_id}")
             
             return tailored_text
         
         except Exception as e:
+            if self._is_auth_error(e):
+                error_msg = (
+                    f"Error tailoring resume for '{job_title}': {str(e)}. "
+                    f"{self._authentication_help_text()}"
+                )
+                logger.error(error_msg)
+                raise RuntimeError(error_msg) from e
+
             error_msg = f"Error tailoring resume for '{job_title}': {str(e)}"
             logger.error(error_msg)
             
-            if retry_count < config.MAX_RETRIES:
+            if retry_count < config.MAX_RETRIES and self._is_retryable_error(e):
                 logger.info(f"Retrying... (attempt {retry_count + 1}/{config.MAX_RETRIES})")
                 time.sleep(config.RETRY_DELAY)
                 return self.tailor(job_title, job_description, job_requirements,
                                  career_context, retry_count + 1)
             else:
-                raise RuntimeError(error_msg)
+                raise RuntimeError(error_msg) from e
     
     def tailor_batch(self, jobs, career_context=None):
         """
@@ -173,8 +285,8 @@ Output the COMPLETE tailored resume in plain text (no markdown formatting).
             try:
                 tailored = self.tailor(
                     job_title=job['title'],
-                    job_description=job['description'],
-                    job_requirements=job['requirements'],
+                    job_description=job.get('description', ''),
+                    job_requirements=job.get('requirements', ''),
                     career_context=career_context
                 )
                 
@@ -208,14 +320,14 @@ if __name__ == '__main__':
     logger.remove()  # Remove default handler
     logger.add(
         config.LOG_FILE,
-        format=config.LOG_FORMAT,
+        format=config.LOG_FILE_FORMAT,
         level=config.LOG_LEVEL,
-        rotation=f"{config.LOG_MAX_BYTES} MB",
+        rotation=config.LOG_MAX_BYTES,
         retention=f"{config.LOG_BACKUP_COUNT} days"
     )
     logger.add(
         lambda msg: print(msg, end=''),  # Also print to console
-        format=config.LOG_FORMAT,
+        format=config.LOG_CONSOLE_FORMAT,
         level=config.LOG_LEVEL
     )
     

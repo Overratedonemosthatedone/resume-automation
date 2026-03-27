@@ -10,12 +10,12 @@ load_dotenv()
 # ============================================================================
 # API Keys & Credentials
 # ============================================================================
-CLAUDE_API_KEY = os.getenv('CLAUDE_API_KEY', '')
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '').strip() or os.getenv('CLAUDE_API_KEY', '').strip()
+CLAUDE_API_KEY = ANTHROPIC_API_KEY  # Backward-compatible alias during migration
 REZI_API_KEY = os.getenv('REZI_API_KEY', '')
-
-if not CLAUDE_API_KEY:
-    raise ValueError("CLAUDE_API_KEY not found in .env file")
-
+MAX_RETRIES = 3
+RETRY_DELAY = 5.0  # seconds between retries for API calls
+BATCH_DELAY = 1.0  # seconds between batch requests
 # ============================================================================
 # File Paths
 # ============================================================================
@@ -23,11 +23,22 @@ PROJECT_ROOT = Path(__file__).parent
 RESUME_OUTPUT_PATH = PROJECT_ROOT / 'resumes'
 DATABASE_PATH = PROJECT_ROOT / 'database' / 'db.sqlite3'
 LOG_PATH = PROJECT_ROOT / 'logs'
+BASE_RESUME_PATH = PROJECT_ROOT / 'base_resume.txt'
+JOB_QUEUE_ROOT = PROJECT_ROOT / 'job_queue'
+JOB_QUEUE_PENDING_PATH = JOB_QUEUE_ROOT / 'pending'
+JOB_QUEUE_PROCESSED_PATH = JOB_QUEUE_ROOT / 'processed'
+JOB_QUEUE_FAILED_PATH = JOB_QUEUE_ROOT / 'failed'
+JOB_INTAKE_HOST = '127.0.0.1'
+JOB_INTAKE_PORT = 8765
+JOB_QUEUE_POLL_SECONDS = 2.0
 
 # Create directories if they don't exist
 RESUME_OUTPUT_PATH.mkdir(exist_ok=True)
 DATABASE_PATH.parent.mkdir(exist_ok=True)
 LOG_PATH.mkdir(exist_ok=True)
+JOB_QUEUE_PENDING_PATH.mkdir(parents=True, exist_ok=True)
+JOB_QUEUE_PROCESSED_PATH.mkdir(parents=True, exist_ok=True)
+JOB_QUEUE_FAILED_PATH.mkdir(parents=True, exist_ok=True)
 
 # ============================================================================
 # Web Scraping Settings
@@ -40,7 +51,7 @@ SCRAPER_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.
 # ============================================================================
 # Claude API Settings
 # ============================================================================
-CLAUDE_MODEL = 'claude-opus-4-20250203'  # Highest quality; use 'claude-sonnet-4-20250514' for speed
+CLAUDE_MODEL = 'claude-haiku-4-5'  # Latest Haiku 4.5 alias
 CLAUDE_MAX_TOKENS = 2000  # Max tokens for resume generation
 
 # Your career context (used in resume tailoring prompts)
@@ -144,9 +155,11 @@ AUTO_APPLY_ATTACH_PDF = True  # Attach PDF instead of DOCX
 # ============================================================================
 # Logging
 # ============================================================================
-LOG_LEVEL = 'INFO'  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 LOG_FILE = LOG_PATH / 'automation.log'
-LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+LOG_CONSOLE_FORMAT = '<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | {message}'
+LOG_FILE_FORMAT = '{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}'
+LOG_FORMAT = LOG_FILE_FORMAT  # Backward-compatible alias for older log setup code
 LOG_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
 LOG_BACKUP_COUNT = 5
 
@@ -255,5 +268,3 @@ MAX_SALARY_USD = 999999999
 LINKEDIN_JOBS_PER_BATCH = 25  # LinkedIn lazy-loads 25 at a time
 INDEED_JOBS_PER_BATCH = 50
 CLAUDE_API_RATE_LIMIT = 30  # requests/min on free tier
-
-print("✓ Configuration loaded successfully")

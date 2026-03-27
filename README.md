@@ -1,450 +1,383 @@
 # Resume Automation System
 
-Automatically scrape job postings, tailor your resume with AI, and generate polished .docx & PDF files for hundreds of applications per week.
+This repository automates the current resume-tailoring workflow from browser capture to generated resume artifacts.
 
-## 🚀 Quick Start
+## Current Status
 
-### Phase 1: Core Resume Tailoring (2–4 weeks)
-- [x] Web scraping from LinkedIn, Indeed, Glassdoor
-- [x] AI-powered resume tailoring with Claude
-- [x] .docx + PDF generation
-- [x] Database tracking and CSV export
-- [ ] Extended: Web dashboard
+The working system today is:
 
-### Phase 2: AI Resume Refinement (1–2 weeks)
-- [ ] Rezi.com integration for auto-refinement
+1. Open a job posting in Google Chrome.
+2. Click the `Send to Resume Tailor` extension button.
+3. The extension sends captured job data to the local intake service at `http://127.0.0.1:8765/intake`.
+4. The intake service normalizes the payload and saves one JSON record in `job_queue/pending/`.
+5. A built-in background worker automatically processes that staged JSON.
+6. The worker reuses the existing tailoring engine and document generators.
+7. Generated resume artifacts are saved in `resumes/`.
+8. The intake JSON moves to `job_queue/processed/` or `job_queue/failed/`.
 
-### Phase 3: Auto-Apply (4+ weeks, stretch goal)
-- [ ] Job application form filling and submission
-- [ ] Application status tracking
+This is the main source of truth for the current implementation.
 
----
+## What The Project Does
 
-## 📋 Prerequisites
+- Captures job posting data directly from Chrome with a local extension.
+- Normalizes that capture into a repeated JSON intake format.
+- Uses the existing Claude-based tailoring engine to tailor your resume.
+- Generates `.docx`, `.pdf`, and a metadata sidecar JSON for each tailored resume.
+- Keeps a simple file-based queue lifecycle with `pending`, `processed`, and `failed`.
 
-- **Python 3.9+** (check with `python3 --version`)
-- **Claude API Key** (free tier available, $5+/month for heavy use)
-- **Git** (optional, for version control)
-- **2–3 GB free disk space** (for resume storage)
+## Current Architecture
 
----
-
-## ⚙️ Installation
-
-### 1. Clone or Download the Project
-
-```bash
-# If using Git
-git clone <your-repo-url>
-cd resume-automation
-
-# Or download and extract the folder
-cd resume-automation
+```text
+Chrome job page
+  -> chrome_resume_tailor/
+  -> POST http://127.0.0.1:8765/intake
+  -> job_intake_service.py
+  -> job_queue/pending/*.json
+  -> built-in background worker (job_queue_processor.py)
+  -> tailor_client_haiku_optimized.ResumeTC.tailor(...)
+  -> document_generators.py
+  -> resumes/*.docx, resumes/*.pdf, resumes/*.json
+  -> intake JSON moved to processed/ or failed/
 ```
 
-### 2. Create a Python Virtual Environment
+### Components
 
-```bash
-# Create virtual environment
-python3 -m venv venv
+- `chrome_resume_tailor/`
+  Chrome Manifest V3 extension with a toolbar button.
+- `job_intake_service.py`
+  Local FastAPI app that accepts captures at `POST /intake`.
+- `job_queue_processor.py`
+  Built-in background worker that processes staged intake JSON files.
+- `tailor_client_haiku_optimized.py`
+  Existing tailoring entry point used by the worker.
+- `document_generators.py`
+  Existing DOCX/PDF generation and naming/versioning logic.
 
-# Activate it
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
+## Requirements
+
+- Windows with Google Chrome installed.
+- Python 3.9 or newer.
+- A valid Anthropic API key.
+- A local `base_resume.txt` in the project root.
+
+### Required Environment Variable
+
+- `ANTHROPIC_API_KEY`
+
+### Supported Legacy Fallback
+
+- `CLAUDE_API_KEY`
+
+### Required Local File
+
+- `base_resume.txt`
+
+This should contain the base resume text that the tailoring engine uses. It is a local-only file and should not be committed if it contains your real resume.
+
+Use the tracked template file as your starting point:
+
+```powershell
+Copy-Item base_resume.example.txt base_resume.txt
+```
+
+If `base_resume.txt` is missing or empty, the queue worker will move intake files to `job_queue/failed/`.
+
+## Project Layout
+
+```text
+resume-automation/
+|-- chrome_resume_tailor/          # Chrome extension to capture job pages
+|-- job_intake_service.py          # Local FastAPI intake service
+|-- job_queue_processor.py         # Built-in background queue worker
+|-- tailor_client.py               # Original tailoring client
+|-- tailor_client_haiku_optimized.py
+|-- document_generators.py         # Existing DOCX/PDF + FileManager logic
+|-- base_resume.example.txt        # Safe tracked template for local setup
+|-- base_resume.txt                # Local-only base resume source (ignored)
+|-- .env                           # Local environment variables
+|-- .env.example                   # Template environment file
+|-- job_queue/
+|   |-- pending/
+|   |-- processed/
+|   `-- failed/
+|-- resumes/                       # Generated resume artifacts
+|-- logs/                          # Service and runtime logs
+`-- README.md
+```
+
+## Setup
+
+### 1. Open The Project
+
+If you are using this repo in its current local location, the project root is:
+
+```text
+c:\Users\12485\OneDrive\Desktop\Python\Projects\Resume Automation System\resume-automation
+```
+
+### 2. Create And Activate A Virtual Environment
+
+```powershell
+python -m venv venv
 venv\Scripts\activate
 ```
 
 ### 3. Install Dependencies
 
-```bash
+```powershell
 pip install -r requirements.txt
 ```
 
-This installs:
-- `beautifulsoup4` + `selenium` (web scraping)
-- `anthropic` (Claude API)
-- `python-docx` + `reportlab` (document generation)
-- `sqlalchemy` (database)
-- `click` (CLI)
-- Plus logging, progress bars, and utilities
+### 4. Create `.env`
 
-### 4. Set Up Environment Variables
-
-```bash
-# Copy the example env file
-cp .env.example .env
-
-# Edit .env and add your Claude API key
-nano .env  # or use your preferred editor
+```powershell
+Copy-Item .env.example .env
+notepad .env
 ```
 
-Your `.env` file should look like:
-```bash
-CLAUDE_API_KEY=sk-ant-your-actual-key-here
-REZI_API_KEY=  # Leave blank for now (Phase 2)
+Set at least:
+
+```text
+ANTHROPIC_API_KEY=sk-ant-your-key-here
 ```
 
-**Get your Claude API key:**
-1. Visit https://console.anthropic.com/account/keys
-2. Create a new API key
-3. Copy it and paste into your `.env` file
+### 5. Create Or Update `base_resume.txt`
 
-### 5. Create Your Base Resume
+Create your local base resume file from the tracked template:
 
-```bash
-# Create a plain text resume file
-nano base_resume.txt
-
-# Paste your resume content (see template below)
+```powershell
+Copy-Item base_resume.example.txt base_resume.txt
+notepad base_resume.txt
 ```
 
-**Template for `base_resume.txt`:**
-```
-Your Name
-your.email@example.com | 555-555-5555 | linkedin.com/in/yourprofile | github.com/yourprofile
+Then replace the sample content with your real resume text for local use.
 
-PROFESSIONAL SUMMARY
-2-3 sentence overview of your experience, skills, and career focus.
+### 6. Start The Local Python Service
 
-EXPERIENCE
+This single command starts both the intake API and the background queue worker:
 
-Senior Software Engineer
-Company Name, City, State | Jan 2022 - Present
-  - Achievement 1: Specific result with numbers/impact
-  - Achievement 2: Technical responsibility and outcome
-  - Achievement 3: Leadership or mentoring contribution
-
-Software Engineer
-Company Name, City, State | Jun 2019 - Dec 2021
-  - Achievement 1
-  - Achievement 2
-  - Achievement 3
-
-EDUCATION
-
-Bachelor of Science in Computer Science
-University Name, City, State | Graduated 2019
-  - GPA: 3.8/4.0 (if notable)
-  - Relevant coursework: Algorithms, Distributed Systems
-
-TECHNICAL SKILLS
-Languages: Python, JavaScript, Go, SQL
-Frameworks: Django, React, FastAPI
-Databases: PostgreSQL, MongoDB, Redis
-Tools & Platforms: Docker, Kubernetes, AWS, Git, GitHub Actions
-
-CERTIFICATIONS & RECOGNITION
-- AWS Certified Solutions Architect - Associate
-- Open Source Contributor: 500+ GitHub stars
-- Recognition: Employee of the Year 2021
+```powershell
+venv\Scripts\activate
+python job_intake_service.py
 ```
 
-### 6. Test Your Setup
+The service listens on:
 
-```bash
-# Verify Python and dependencies
-python3 --version
-pip list | grep anthropic
+- `http://127.0.0.1:8765`
+- `POST http://127.0.0.1:8765/intake`
 
-# Test the configuration
-python3 -c "import config; print('✓ Config loaded')"
+Optional health check:
 
-# Test resume tailor client
-python3 tailor_client.py
+```powershell
+Invoke-RestMethod -Uri http://127.0.0.1:8765/health
 ```
 
-If you see "Resume Tailoring Demo" output, you're ready!
+### 7. Load The Chrome Extension
 
----
+Open `chrome://extensions`, enable Developer mode, click `Load unpacked`, and select:
 
-## 🎯 Usage
-
-### Option A: Simple Single Job Tailoring
-
-```python
-from tailor_client import ResumeTC
-from document_generators import DocxGenerator, PdfGenerator
-
-# Load your base resume
-with open('base_resume.txt', 'r') as f:
-    base_resume = f.read()
-
-# Create tailor client
-tailor = ResumeTC(base_resume_text=base_resume)
-
-# Tailor for a specific job
-tailored = tailor.tailor(
-    job_title="Senior Software Engineer",
-    job_description="We're looking for a full-stack engineer...",
-    job_requirements="5+ years Python, 3+ years React, AWS experience..."
-)
-
-# Generate .docx
-docx_gen = DocxGenerator()
-docx_gen.parse_and_add_resume(tailored)
-docx_gen.save('tailored_resume.docx')
-
-# Generate PDF
-pdf_gen = PdfGenerator()
-pdf_gen.create_pdf(tailored, 'tailored_resume.pdf')
-
-print("✓ Generated: tailored_resume.docx and tailored_resume.pdf")
+```text
+c:\Users\12485\OneDrive\Desktop\Python\Projects\Resume Automation System\resume-automation\chrome_resume_tailor
 ```
 
-### Option B: Batch Processing (Coming Soon)
+The extension folder inside the repo is also:
 
-Once you complete Phase 1, you'll have a full CLI:
-
-```bash
-# Scrape job postings
-python main.py scrape --query "Senior Python Engineer" --location Remote --limit 50
-
-# Tailor all jobs in the database
-python main.py tailor_all --base-resume base_resume.txt --batch-size 20
-
-# Export to CSV tracker
-python main.py export_tracker
+```text
+chrome_resume_tailor
 ```
 
----
+## How The Chrome Extension Works
 
-## 📁 Project Structure
+- It runs on the active Chrome tab when you click the toolbar button.
+- It extracts:
+  - page URL
+  - page title
+  - source hostname
+  - best-effort role title
+  - best-effort company name
+  - best-effort job description text
+  - fallback visible page text
+- It posts that JSON to `POST /intake` on the local service.
 
-```
-resume-automation/
-├── base_resume.txt                    # Your base resume (plain text)
-├── config.py                          # Configuration & settings
-├── requirements.txt                   # Python dependencies
-├── .env                               # API keys (DO NOT commit)
-├── .env.example                       # Template for .env
-│
-├── tailor_client.py                   # Claude resume tailoring
-├── document_generators.py             # .docx & PDF generation
-│
-├── resumes/                           # Output folder for generated resumes
-│   ├── 2026-03/
-│   │   ├── company_job_title.docx
-│   │   └── company_job_title.pdf
-│   └── ...
-│
-├── database/
-│   └── db.sqlite3                     # Job tracking database
-│
-├── logs/
-│   └── automation.log                 # System logs
-│
-├── RESUME_AUTOMATION_SPEC.md          # Full technical specification
-└── README.md                          # This file
-```
+Important: extraction is best-effort. Some job boards and page templates may not extract company or title perfectly.
 
----
+## Intake JSON Source Of Truth
 
-## 🔧 Configuration
+Each capture is saved in a repeated structure like this before processing begins:
 
-Edit `config.py` to customize:
-
-```python
-# Claude model (Opus = highest quality, Sonnet = faster/cheaper)
-CLAUDE_MODEL = 'claude-opus-4-20250203'
-
-# Your career context (used in resume tailoring)
-RESUME_CONTEXT = """
-Your additional achievements, skills, and certifications.
-This is used to provide more context to Claude when tailoring.
-"""
-
-# Job scraping sources (LinkedIn, Indeed, Glassdoor)
-SCRAPER_SOURCES = {
-    'linkedin': {'enabled': True},
-    'indeed': {'enabled': True},
-    'glassdoor': {'enabled': False},  # More restrictive
+```json
+{
+  "captured_at": "2026-03-27T10:15:30.123456+00:00",
+  "source": "jobs.example.com",
+  "page_url": "https://jobs.example.com/roles/123",
+  "page_title": "Senior Engineer - Example Co",
+  "company": "Example Co",
+  "role_title": "Senior Engineer",
+  "job_description_text": "Normalized job description text...",
+  "raw_visible_text": "Fallback visible page text...",
+  "status": "pending"
 }
-
-# Resume output formats
-RESUME_FORMATS = ['docx', 'pdf']  # Generate both
-
-# Rate limiting
-SCRAPER_DELAY_SECONDS = 2  # Respectful delays
-BATCH_SIZE = 10  # Jobs per batch
 ```
 
----
+The worker may later add fields such as:
 
-## 📊 Claude API Costs
+- `processing_started_at`
+- `processed_at`
+- `failed_at`
+- `error_message`
+- `output_artifacts`
+- `tailoring_engine`
 
-**Current Pricing (as of March 2026):**
+## Queue Lifecycle
 
-- **Claude Opus** (highest quality):
-  - Input: $3/M tokens
-  - Output: $15/M tokens
-  
-- **Claude Sonnet** (balanced):
-  - Input: $3/M tokens
-  - Output: $15/M tokens
+- `job_queue/pending/`
+  New captures are staged here first.
+- `job_queue/processed/`
+  Successful captures end up here after tailoring and document generation.
+- `job_queue/failed/`
+  Failed captures end up here with an error message when available.
 
-**Estimated Cost for 100 Resumes/Week:**
-- ~250K input tokens + 100K output tokens = ~$1.05/week
-- **Free tier = 5M tokens/month** = enough for ~200 resumes before upgrade needed
-- **Monthly subscription ($20/month)** = 1M tokens/month + 100M discounted tokens
+The status field moves through:
 
-→ **Recommendation:** Start free. If you hit the limit, upgrade to $20/month tier.
+- `pending`
+- `processing`
+- `complete`
+- `failed`
 
----
+## Tailoring And Output Generation
 
-## 🌐 Web Scraping Notes
+The worker does not use a second or replacement resume generator.
 
-### LinkedIn
-- **Status:** Works but can be blocked
-- **Mitigation:** Use delays (2–5 sec), headless browser, rotate user agents
-- **Alternative:** Use LinkedIn official API (limited, but more stable)
+It reuses:
 
-### Indeed
-- **Status:** Works well
-- **Delay:** 2 sec between requests recommended
-- **Friendly:** More permissive than LinkedIn
+- `tailor_client_haiku_optimized.ResumeTC.tailor(...)`
+- `document_generators.DocxGenerator`
+- `document_generators.PdfGenerator`
+- `document_generators.FileManager`
 
-### Glassdoor
-- **Status:** Most restrictive
-- **Delay:** 3+ sec recommended
-- **Alternative:** Use web scraping service (ScraperAPI, Bright Data)
+That means the existing output naming and versioning logic is still the one in use.
 
-**Legal Note:** Always check website's `robots.txt` and Terms of Service. Web scraping is generally legal for personal use, but aggressive scraping may violate ToS.
+## Where Outputs Go
 
----
+Generated resumes are saved in:
 
-## 🐛 Troubleshooting
+```text
+resumes/
+```
 
-### "CLAUDE_API_KEY not found"
-- [ ] Check `.env` file exists and is in the project root
-- [ ] Check `.env` has `CLAUDE_API_KEY=sk-ant-...` (not empty)
-- [ ] Reload terminal: `source venv/bin/activate`
+Typical filenames look like:
 
-### "LinkedIn blocks scraper"
-- [ ] Increase delay: `SCRAPER_DELAY_SECONDS = 5`
-- [ ] Use headless mode: `SCRAPER_HEADLESS = True`
-- [ ] Try Indeed instead
-- [ ] Consider ScraperAPI ($10–50/mo) for reliable scraping
+```text
+2026-03-27__Example-Co__Senior-Engineer__jobs.example.com__v1.docx
+2026-03-27__Example-Co__Senior-Engineer__jobs.example.com__v1.pdf
+2026-03-27__Example-Co__Senior-Engineer__jobs.example.com__v1.json
+```
 
-### "PDF generation fails"
-- [ ] Reinstall reportlab: `pip install --upgrade reportlab`
-- [ ] Check resume text has no special characters that cause encoding issues
-- [ ] Verify file path is writable
+### Naming And Versioning
 
-### "Database locked"
-- [ ] Close other Python processes using the database
-- [ ] SQLite uses WAL mode by default (safe for concurrent access)
-- [ ] Delete `database/db.sqlite3-wal` if stuck
+- The date comes from the intake record capture date.
+- Company, role title, and source are sanitized for filesystem-safe names.
+- The `__vN` suffix increments when the same base stem already exists.
 
-### "Out of API quota"
-- [ ] Check remaining tokens: https://console.anthropic.com/account/usage
-- [ ] Upgrade to paid plan: https://console.anthropic.com/account/billing/plans
-- [ ] Or wait for next month's free allocation
+### Metadata Sidecar
 
----
+For each resume set, a JSON sidecar with the same stem is written beside the resume artifacts. It records:
 
-## 🚀 Next Steps
+- company
+- role title
+- source job board
+- source URL
+- resume type
+- filename
+- full output path
+- sibling artifact paths
 
-### Immediate (This Week)
-- [ ] Get Claude API key
-- [ ] Install Python + dependencies
-- [ ] Create base_resume.txt
-- [ ] Test `tailor_client.py` with a sample job
+## What Success Looks Like
 
-### Phase 1 (2–4 Weeks)
-- [ ] Complete Week 1: Implement scraper
-- [ ] Complete Week 2: Implement tailoring + document generation
-- [ ] Complete Week 3: Add database tracking
-- [ ] Complete Week 4: Test full pipeline, polish
+After clicking the Chrome extension button:
 
-### Phase 2 (1–2 Weeks)
-- [ ] Integrate Rezi.com API
-- [ ] Test resume refinement
-- [ ] Compare original vs. Rezi-refined resumes
+- the service logs that intake was received
+- a JSON file appears briefly in `job_queue/pending/`
+- the worker logs that tailoring started
+- new resume artifacts appear in `resumes/`
+- the intake JSON moves to `job_queue/processed/`
 
-### Phase 3 (4+ Weeks)
-- [ ] Research job application APIs
-- [ ] Implement form filling (Selenium)
-- [ ] Test with 10 live applications
-- [ ] Scale to auto-apply
+If something goes wrong:
 
----
+- the intake JSON moves to `job_queue/failed/`
+- the file should contain `error_message`
+- the service logs show where the failure happened
 
-## 📖 Resources
+## Troubleshooting
 
-- **Claude API Docs:** https://docs.anthropic.com
-- **Python Beautiful Soup:** https://beautiful-soup-4.readthedocs.io
-- **Selenium WebDriver:** https://selenium-python.readthedocs.io
-- **python-docx Docs:** https://python-docx.readthedocs.io
-- **ReportLab (PDF):** https://www.reportlab.com/docs/reportlab-userguide.pdf
-- **SQLAlchemy ORM:** https://docs.sqlalchemy.org/
+### The extension shows `ERR`
 
----
+- Confirm `python job_intake_service.py` is still running.
+- Confirm the service is reachable at `http://127.0.0.1:8765/health`.
+- Reload the extension in `chrome://extensions`.
 
-## 🤝 Contributing & Customization
+### The intake JSON ends up in `failed`
 
-This is your personal project—feel free to:
-- Customize the resume tailoring prompt
-- Add new scraping sources
-- Implement phase 2 and 3 features
-- Extend with your own features (cover letter generation, application tracking, etc.)
+Open the failed JSON and check:
 
----
+- `error_message`
+- `page_url`
+- `page_title`
+- `job_description_text`
+- `raw_visible_text`
 
-## 📝 License
+Common reasons:
 
-This project is for personal use. If you share it, please include attribution to Claude and Anthropic.
+- `base_resume.txt` is missing or empty.
+- `ANTHROPIC_API_KEY` is missing or invalid.
+- The captured job text is too short or incomplete.
+- The page extraction did not produce enough usable text.
 
----
+### Company Or Role Title Is Wrong Or Blank
 
-## 💡 Tips for Success
+- The browser extraction is best-effort.
+- Some sites hide or dynamically render important fields differently.
+- The fallback page text should still be captured, but metadata fields may be imperfect.
 
-1. **Start small:** Test with 5 jobs first, then scale
-2. **Review resumes:** Always review generated resumes before applying
-3. **Track applications:** Use the CSV export to track which jobs you've applied to
-4. **Iterate:** Adjust your base resume and career context based on results
-5. **Be respectful:** Use appropriate delays when scraping to avoid overloading servers
-6. **Backup data:** Export CSV tracker regularly
-7. **Experiment:** Try different Claude models; Sonnet is faster/cheaper, Opus is higher quality
+### The worker does not seem to process new files
 
----
+- Check `http://127.0.0.1:8765/health` and confirm `worker_running` is `true`.
+- Check the service console logs.
+- Restart the service. The worker scans `job_queue/pending/` on startup.
 
-## ❓ FAQ
+### Styling Or Output Polish Needs Work
 
-**Q: Can I use this to apply to 1000s of jobs?**
-A: Technically yes, but strategically no. Quality > Quantity. Target 50–100 high-fit roles per week.
+- The system currently focuses on consistent automation and ATS-safe output.
+- Visual polish can still be refined later without changing the intake/queue architecture.
 
-**Q: Will this guarantee interviews?**
-A: No. AI-tailored resumes improve your chances, but strong fundamentals (actual experience, skills match) matter most.
+## Documentation Map
 
-**Q: Is web scraping legal?**
-A: Generally yes for personal use, but check each site's `robots.txt` and ToS. LinkedIn is aggressive about blocking.
+- `README.md`
+  Main source of truth for the current working system.
+- `QUICK_START.md`
+  Fastest path from zero to a successful test.
+- `PROJECT_OVERVIEW.md`
+  High-level architecture and component roles.
+- `JOB_INTAKE_SETUP.md`
+  Extension and intake-service focused setup notes.
+- `GIT_QUICK_REFERENCE.md`
+  Short Git/GitHub commands for this repo.
+- `GIT_GITHUB_SETUP.md`
+  Longer Git/GitHub setup guide.
+- `RESUME_AUTOMATION_SPEC.md`
+  Historical specification and roadmap. Useful for future planning, but not the main source of truth for what is implemented today.
+- `CLARIFICATIONS.md`, `ANSWER_YOUR_QUESTIONS.md`, `SUMMARY_OF_UPDATES.md`, `UPDATES_AND_CLARIFICATIONS.md`
+  Archived reference docs kept only for historical context.
 
-**Q: How much does this cost to run?**
-A: $0–20/month depending on job volume and which services you use.
+## Commit Safety
 
-**Q: Can I use this for other positions (internships, freelance)?**
-A: Yes! The system works for any job posting with title, description, and requirements.
+- `.env` and local env variants are local-only and should not be committed.
+- `base_resume.txt` is local-only and should not be committed if it contains your real resume.
+- `base_resume.example.txt` is the safe tracked template intended for the repository.
 
-**Q: What if a job site requires a special form?**
-A: Phase 3 (auto-apply) will handle common forms, but rare formats may need manual work.
+## Honest Notes
 
----
-
-## 🎓 Learning Resources
-
-Completed your Phase 1? Here are next steps:
-- Study web scraping best practices
-- Learn prompt engineering for better resume tailoring
-- Explore job board APIs (LinkedIn Official, Indeed API)
-- Implement Phase 3: Selenium for form automation
-
----
-
-**Questions? Stuck? Need help?**
-
-Check the full technical specification in `RESUME_AUTOMATION_SPEC.md` for deeper details on each module.
-
----
-
-**Good luck with your job search! 🎯**
+- Chrome extraction is best-effort, not guaranteed perfect.
+- The current system is local-first and file-based. There is no intake database.
+- The worker processes one staged job at a time by design.
+- The extension gets a staging response immediately; it does not wait for resume generation to finish.

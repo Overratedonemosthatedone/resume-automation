@@ -6,7 +6,7 @@ selenium==4.15.2
 requests==2.31.0
 
 # Claude API
-anthropic==0.7.1
+anthropic==0.84.0
 
 # Document Generation
 python-docx==0.8.11
@@ -27,6 +27,10 @@ loguru==0.7.2
 
 # Optional: Web UI (Phase 3)
 # flask==3.0.0
+
+# Local job intake service
+fastapi>=0.110,<1.0
+uvicorn>=0.29,<1.0
 
 # Development (optional)
 # pytest==7.4.3

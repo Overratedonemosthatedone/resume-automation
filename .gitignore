@@ -38,6 +38,7 @@ venv.bak/
 
 # dotenv
 .env
+.env.local
 .env.*.local
 
 # Jupyter
@@ -63,10 +64,13 @@ logs/
 *.log
 database/
 resumes/
+job_queue/
 database/db.sqlite3
+tmp4ey0g1kv/
 
 # Sensitive files
 # (keep API keys, credentials, and other secrets out of VCS)
 .env
+base_resume.txt
 
 # End of file

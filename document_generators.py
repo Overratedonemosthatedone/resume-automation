@@ -5,7 +5,12 @@ Converts plain text resumes into .docx and PDF formats.
 Maintains clean, ATS-friendly formatting in both outputs.
 """
 
+import json
+import re
+from datetime import datetime
 from pathlib import Path
+
+import config
 from docx import Document
 from docx.shared import Pt, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -14,7 +19,6 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-import config
 from loguru import logger
 
 
@@ -184,7 +188,8 @@ class DocxGenerator:
         file_path.parent.mkdir(parents=True, exist_ok=True)
         
         self.doc.save(str(file_path))
-        logger.info(f"✓ Saved DOCX: {file_path}")
+        logger.info(f"Saved DOCX: {file_path}")
+        print(f"Saved resume to: {file_path}")
 
 
 # ============================================================================
@@ -203,7 +208,7 @@ class PdfGenerator:
         """Add ATS-friendly styles for PDF output."""
         # Normal paragraph style
         self.styles.add(ParagraphStyle(
-            name='CustomNormal',
+            name='ResumeNormal',
             fontName='Helvetica',
             fontSize=10,
             leading=12,
@@ -213,7 +218,7 @@ class PdfGenerator:
         
         # Section header style
         self.styles.add(ParagraphStyle(
-            name='SectionHeader',
+            name='ResumeSectionHeader',
             fontName='Helvetica-Bold',
             fontSize=11,
             leading=12,
@@ -225,7 +230,7 @@ class PdfGenerator:
         
         # Contact info style
         self.styles.add(ParagraphStyle(
-            name='ContactInfo',
+            name='ResumeContactInfo',
             fontName='Helvetica',
             fontSize=10,
             leading=10,
@@ -235,7 +240,7 @@ class PdfGenerator:
         
         # Bullet style
         self.styles.add(ParagraphStyle(
-            name='Bullet',
+            name='ResumeBullet',
             fontName='Helvetica',
             fontSize=10,
             leading=12,
@@ -276,22 +281,23 @@ class PdfGenerator:
             
             elif line.isupper() or line.endswith(':'):
                 # Section header
-                elements.append(Paragraph(line, self.styles['SectionHeader']))
+                elements.append(Paragraph(line, self.styles['ResumeSectionHeader']))
             
             elif line.startswith('  ') or line.startswith('\t'):
                 # Bullet point
                 clean_line = line.lstrip()
                 if clean_line.startswith('- ') or clean_line.startswith('• '):
                     clean_line = clean_line[2:].strip()
-                elements.append(Paragraph('• ' + clean_line, self.styles['Bullet']))
+                elements.append(Paragraph('• ' + clean_line, self.styles['ResumeBullet']))
             
             else:
                 # Regular text
-                elements.append(Paragraph(line, self.styles['CustomNormal']))
+                elements.append(Paragraph(line, self.styles['ResumeNormal']))
         
         try:
             doc.build(elements)
-            logger.info(f"✓ Saved PDF: {output_path}")
+            logger.info(f"Saved PDF: {output_path}")
+            print(f"Saved resume to: {output_path}")
         except Exception as e:
             logger.error(f"Failed to generate PDF {output_path}: {e}")
             raise
@@ -303,61 +309,234 @@ class PdfGenerator:
 
 class FileManager:
     """Manage file organization and naming"""
-    
-    def __init__(self, base_path):
+
+    INVALID_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*]+')
+    MULTISPACE_PATTERN = re.compile(r"\s+")
+    MULTIDASH_PATTERN = re.compile(r"-{2,}")
+    MAX_FILENAME_LENGTH = 120
+
+    def __init__(self, base_path=None):
         """
         Initialize file manager.
         
         Args:
             base_path: Base directory for storing resumes
         """
-        self.base_path = Path(base_path)
+        self.base_path = Path(base_path) if base_path else Path(config.RESUME_OUTPUT_PATH)
         self.base_path.mkdir(parents=True, exist_ok=True)
         logger.info(f"FileManager base path: {self.base_path}")
-    
-    def get_path(self, company, job_title, format='docx', date_str=None):
+
+    def get_path(self, company, job_title, format='docx', date_str=None, source='Unknown'):
         """
-        Get file path for a tailored resume.
+        Get a versioned file path for a tailored resume.
         
         Args:
             company: Company name
             job_title: Job title
-            format: 'docx' or 'pdf'
-            date_str: Optional date string (defaults to current date)
+            format: 'docx', 'pdf', or 'json'
+            date_str: Optional date string in YYYY-MM-DD format
+            source: Job board/source label
         
         Returns:
             Path object for the file
         """
-        from datetime import datetime
+        date_part = self._normalize_date(date_str)
+        base_name = self._build_base_name(
+            date_part=date_part,
+            company=company,
+            role_title=job_title,
+            source_job_board=source,
+        )
+        version = self._resolve_version(base_name=base_name, requested_extension=format)
+        return self.base_path / f"{base_name}__v{version}.{format}"
+
+    def get_metadata_path(self, company, job_title, date_str=None, source='Unknown'):
+        """Get the sidecar JSON metadata path for a tailored resume."""
+        return self.get_path(
+            company=company,
+            job_title=job_title,
+            format='json',
+            date_str=date_str,
+            source=source,
+        )
+
+    def write_metadata(
+        self,
+        output_path,
+        company,
+        role_title,
+        source_job_board,
+        resume_type,
+        source_url=None,
+        created_at=None,
+    ):
+        """
+        Write a sidecar JSON metadata file beside the generated resume.
         
-        if date_str is None:
-            date_str = datetime.now().strftime(config.DATE_FORMAT)
-        
-        # Sanitize company and title names for use in filenames
-        company_clean = self._sanitize_name(company)
-        title_clean = self._sanitize_name(job_title)
-        
-        # Create date folder
-        date_path = self.base_path / date_str
-        date_path.mkdir(parents=True, exist_ok=True)
-        
-        # Create filename
-        filename = f"{company_clean}_{title_clean}.{format}"
-        
-        return date_path / filename
-    
+        Returns:
+            Path to the JSON metadata file
+        """
+        output_path = Path(output_path)
+        metadata_path = output_path.with_suffix('.json')
+        metadata = {
+            'created_at': self._normalize_created_at(created_at),
+            'company': company,
+            'role_title': role_title,
+            'source_job_board': source_job_board,
+            'source_url': source_url,
+            'resume_type': resume_type,
+            'filename': output_path.name,
+            'full_output_path': str(output_path.resolve()),
+            'artifacts': self._collect_artifacts(output_path),
+        }
+
+        metadata_path.write_text(json.dumps(metadata, indent=2), encoding='utf-8')
+        logger.info(f"Saved metadata: {metadata_path}")
+        return metadata_path
+
+    def save_docx_resume(
+        self,
+        docx_generator,
+        company,
+        job_title,
+        source='Unknown',
+        source_url=None,
+        created_at=None,
+    ):
+        """Save a DOCX resume and create its metadata sidecar."""
+        output_path = self.get_path(
+            company=company,
+            job_title=job_title,
+            format='docx',
+            date_str=created_at,
+            source=source,
+        )
+        docx_generator.save(output_path)
+        self.write_metadata(
+            output_path=output_path,
+            company=company,
+            role_title=job_title,
+            source_job_board=source,
+            source_url=source_url,
+            resume_type='docx',
+            created_at=created_at,
+        )
+        return output_path
+
+    def save_pdf_resume(
+        self,
+        pdf_generator,
+        resume_text,
+        company,
+        job_title,
+        source='Unknown',
+        source_url=None,
+        created_at=None,
+    ):
+        """Save a PDF resume and create its metadata sidecar."""
+        output_path = self.get_path(
+            company=company,
+            job_title=job_title,
+            format='pdf',
+            date_str=created_at,
+            source=source,
+        )
+        pdf_generator.create_pdf(resume_text, output_path)
+        self.write_metadata(
+            output_path=output_path,
+            company=company,
+            role_title=job_title,
+            source_job_board=source,
+            source_url=source_url,
+            resume_type='pdf',
+            created_at=created_at,
+        )
+        return output_path
+
+    def _build_base_name(self, date_part, company, role_title, source_job_board):
+        """Build a sortable filename stem."""
+        company_part = self._sanitize_name(company, fallback='Company')
+        role_part = self._sanitize_name(role_title, fallback='Role')
+        source_part = self._sanitize_name(source_job_board, fallback='Unknown')
+
+        version_suffix_length = len('__v999')
+        available_length = self.MAX_FILENAME_LENGTH - version_suffix_length
+        segments = [date_part, company_part, role_part, source_part]
+        base_name = '__'.join(segments)
+
+        while len(base_name) > available_length:
+            trim_index = max(range(1, len(segments)), key=lambda idx: len(segments[idx]))
+            minimum_lengths = {1: 8, 2: 12, 3: 6}
+            if len(segments[trim_index]) <= minimum_lengths[trim_index]:
+                break
+            segments[trim_index] = segments[trim_index][:-1].rstrip('-')
+            base_name = '__'.join(segments)
+
+        return base_name[:available_length].rstrip('-.')
+
+    def _resolve_version(self, base_name, requested_extension):
+        """
+        Find the next version number without splitting docx/pdf/json siblings
+        across different versions.
+        """
+        version_map = {}
+        pattern = re.compile(rf"^{re.escape(base_name)}__v(\d+)\.(docx|pdf|json)$", re.IGNORECASE)
+        for candidate in self.base_path.glob(f"{base_name}__v*.*"):
+            match = pattern.match(candidate.name)
+            if not match:
+                continue
+            version = int(match.group(1))
+            version_map.setdefault(version, set()).add(match.group(2).lower())
+
+        if not version_map:
+            return 1
+
+        latest_version = max(version_map)
+        existing_extensions = version_map[latest_version]
+        if requested_extension.lower() not in existing_extensions:
+            return latest_version
+
+        return latest_version + 1
+
+    def _collect_artifacts(self, output_path):
+        """Collect sibling artifact paths that share the same base name."""
+        artifact_paths = {}
+        for extension in ('docx', 'pdf', 'json'):
+            candidate = output_path.with_suffix(f'.{extension}')
+            if candidate.exists():
+                artifact_paths[extension] = str(candidate.resolve())
+        return artifact_paths
+
     @staticmethod
-    def _sanitize_name(name):
-        """Remove special characters from names for filenames."""
-        import re
-        # Keep only alphanumeric, spaces, hyphens
-        clean = re.sub(r'[^\w\s-]', '', name)
-        # Replace spaces with underscores
-        clean = clean.replace(' ', '_')
-        # Remove multiple underscores
-        clean = re.sub(r'_+', '_', clean)
-        # Limit length
-        return clean[:50].strip('_')
+    def _normalize_created_at(created_at):
+        """Return an ISO timestamp string for metadata."""
+        if isinstance(created_at, datetime):
+            return created_at.isoformat(timespec='seconds')
+        if isinstance(created_at, str) and created_at.strip():
+            return created_at.strip()
+        return datetime.now().isoformat(timespec='seconds')
+
+    @staticmethod
+    def _normalize_date(date_value=None):
+        """Return the filename date segment in YYYY-MM-DD format."""
+        if isinstance(date_value, datetime):
+            return date_value.strftime('%Y-%m-%d')
+        if isinstance(date_value, str) and date_value.strip():
+            return date_value.strip()
+        return datetime.now().strftime('%Y-%m-%d')
+
+    @staticmethod
+    def _sanitize_name(name, fallback='Unknown'):
+        """Sanitize a filename segment for Windows-friendly output."""
+        if name is None:
+            return fallback
+
+        clean = str(name).strip()
+        clean = FileManager.INVALID_FILENAME_CHARS.sub(' ', clean)
+        clean = FileManager.MULTISPACE_PATTERN.sub('-', clean)
+        clean = FileManager.MULTIDASH_PATTERN.sub('-', clean)
+        clean = clean.strip('-. _')
+        return clean[:50] or fallback
 
 
 # ============================================================================
@@ -400,13 +579,29 @@ Cloud: AWS, Docker
     print("Testing DOCX Generator...")
     docx_gen = DocxGenerator()
     docx_gen.parse_and_add_resume(sample_resume)
-    docx_gen.save('test_resume.docx')
     
     print("\nTesting PDF Generator...")
     pdf_gen = PdfGenerator()
-    pdf_gen.create_pdf(sample_resume, 'test_resume.pdf')
     
     print("\nTesting File Manager...")
-    fm = FileManager('/tmp/resumes')
-    path = fm.get_path('Tech Corp', 'Senior Engineer', format='docx')
-    print(f"Generated path: {path}")
+    fm = FileManager(config.RESUME_OUTPUT_PATH)
+    docx_path = fm.save_docx_resume(
+        docx_generator=docx_gen,
+        company='Tech Corp',
+        job_title='Senior Engineer',
+        source='Demo',
+        source_url='https://example.com/jobs/1',
+        created_at='2026-03-27',
+    )
+    pdf_path = fm.save_pdf_resume(
+        pdf_generator=pdf_gen,
+        resume_text=sample_resume,
+        company='Tech Corp',
+        job_title='Senior Engineer',
+        source='Demo',
+        source_url='https://example.com/jobs/1',
+        created_at='2026-03-27',
+    )
+    print(f"Generated DOCX path: {docx_path}")
+    print(f"Generated PDF path: {pdf_path}")
+    print(f"Generated metadata path: {docx_path.with_suffix('.json')}")

@@ -1,242 +1,99 @@
-# Quick Start Guide - Get Running in 30 Minutes
+# Quick Start
 
-## Step 1: Get Your Claude API Key (5 min)
+Use this guide to get from zero to one successful end-to-end run as quickly as possible.
 
-1. Visit: https://console.anthropic.com/account/keys
-2. Sign up or log in with Anthropic
-3. Click "Create Key"
-4. Copy the key (starts with `sk-ant-`)
-5. Keep it safe! Don't share it.
+## 1. Open The Project
 
-## Step 2: Create Project Folder (2 min)
+If you are using the repo at its current local location:
 
-```bash
-# Create a folder for the project
-mkdir resume-automation
-cd resume-automation
-
-# Create subdirectories
-mkdir database logs resumes
+```text
+c:\Users\12485\OneDrive\Desktop\Python\Projects\Resume Automation System\resume-automation
 ```
 
-## Step 3: Copy All Files Into Folder
+## 2. Create And Activate The Virtual Environment
 
-Download/copy these files into your `resume-automation/` folder:
-- `config.py`
-- `requirements.txt`
-- `.env.example`
-- `tailor_client.py`
-- `document_generators.py`
-- `README.md`
-- `RESUME_AUTOMATION_SPEC.md`
+```powershell
+python -m venv venv
+venv\Scripts\activate
+```
 
-## Step 4: Set Up Python Environment (3 min)
+## 3. Install Dependencies
 
-```bash
-# Check Python version (must be 3.9+)
-python3 --version
-
-# Create virtual environment
-python3 -m venv venv
-
-# Activate it
-source venv/bin/activate
-# On Windows: venv\Scripts\activate
-
-# Install dependencies
+```powershell
 pip install -r requirements.txt
 ```
 
-## Step 5: Add Your API Key (2 min)
+## 4. Create `.env`
 
-```bash
-# Create .env file
-cp .env.example .env
-
-# Edit .env with your editor
-nano .env
-
-# Change this line:
-CLAUDE_API_KEY=sk-ant-your-actual-key-here
+```powershell
+Copy-Item .env.example .env
+notepad .env
 ```
 
-## Step 6: Create Your Resume File (10 min)
+Set:
 
-Create `base_resume.txt` with your actual resume:
-
-```bash
-nano base_resume.txt
+```text
+ANTHROPIC_API_KEY=sk-ant-your-key-here
 ```
 
-Paste your resume in this format:
+## 5. Create Or Confirm `base_resume.txt`
 
-```
-Your Full Name
-your.email@email.com | (555) 555-5555 | linkedin.com/in/yourprofile | github.com/yourprofile
+Create it from the tracked sample file:
 
-PROFESSIONAL SUMMARY
-1-2 sentence overview of your experience and skills.
-
-EXPERIENCE
-
-Job Title
-Company Name, City, State | Jan 2022 - Present
-  - Achievement 1 with measurable impact
-  - Achievement 2 with responsibility
-  - Achievement 3 with outcome
-
-Previous Job Title
-Previous Company, City, State | Jan 2020 - Dec 2021
-  - Achievement 1
-  - Achievement 2
-
-EDUCATION
-
-Bachelor of Science in Your Field
-University Name, City, State | Graduated 2019
-  - GPA: 3.8/4.0
-
-TECHNICAL SKILLS
-Languages: Python, JavaScript, Go
-Frameworks: Django, React, FastAPI
-Tools: Docker, Git, AWS
-
-CERTIFICATIONS
-- AWS Certified Solutions Architect
-- Relevant certification 2
+```powershell
+Copy-Item base_resume.example.txt base_resume.txt
+notepad base_resume.txt
 ```
 
-## Step 7: Test Your Setup (5 min)
+Then replace the sample content with your real resume text. `base_resume.txt` is local-only and should not be committed.
 
-Run the demo:
+## 6. Start The Local Python Service
 
-```bash
-python3 tailor_client.py
+```powershell
+venv\Scripts\activate
+python job_intake_service.py
 ```
 
-You should see a full tailored resume output! 🎉
+Optional health check:
 
----
-
-## 🎯 You're Ready!
-
-Now you have two options:
-
-### Option A: Use Single Job Tailoring (Immediate)
-
-```python
-# Create a file called test_tailor.py
-from tailor_client import ResumeTC
-from document_generators import DocxGenerator, PdfGenerator
-
-with open('base_resume.txt', 'r') as f:
-    base = f.read()
-
-tailor = ResumeTC(base_resume_text=base)
-
-# Copy a real job posting description and requirements
-job_title = "Senior Software Engineer"
-job_desc = "We are looking for... [paste full description]"
-job_reqs = "5+ years... [paste requirements]"
-
-# Tailor
-tailored = tailor.tailor(job_title, job_desc, job_reqs)
-
-# Generate files
-docx_gen = DocxGenerator()
-docx_gen.parse_and_add_resume(tailored)
-docx_gen.save(f'resumes/{job_title}.docx')
-
-pdf_gen = PdfGenerator()
-pdf_gen.create_pdf(tailored, f'resumes/{job_title}.pdf')
-
-print("✓ Generated tailored resume!")
+```powershell
+Invoke-RestMethod -Uri http://127.0.0.1:8765/health
 ```
 
-Run it:
-```bash
-python3 test_tailor.py
+## 7. Load The Chrome Extension
+
+Open `chrome://extensions`, enable Developer mode, click `Load unpacked`, and select:
+
+```text
+c:\Users\12485\OneDrive\Desktop\Python\Projects\Resume Automation System\resume-automation\chrome_resume_tailor
 ```
 
-### Option B: Build Full Pipeline (Phase 1, 2-4 weeks)
+## 8. Run Your First Real Test
 
-Follow the timeline in `RESUME_AUTOMATION_SPEC.md`:
-- Week 1: Web scraping
-- Week 2: Batch tailoring
-- Week 3: Database tracking
-- Week 4: Polish & scale
+1. Open a job posting page in Chrome.
+2. Click `Send to Resume Tailor`.
+3. Watch the service logs.
 
----
+## 9. Success Looks Like
 
-## 📊 What You Can Do Now
+- The service prints the saved intake JSON path.
+- The intake file appears in `job_queue/pending/` and then moves to `job_queue/processed/`.
+- New files appear in `resumes/`:
+  - `.docx`
+  - `.pdf`
+  - `.json` metadata sidecar
 
-✅ **Immediately:**
-- Tailor 1 resume to 1 job posting
-- Generate .docx and PDF files
-- Test Claude API integration
+## 10. If The Job Ends Up In `failed`
 
-✅ **This Week:**
-- Tailor 10 resumes for different jobs
-- Compare different versions
-- Export as files for application
+Check:
 
-✅ **This Month (Phase 1):**
-- Scrape 100s of job postings
-- Batch tailor resumes
-- Track everything in a database
+- `job_queue/failed/<file>.json`
+- the `error_message` field inside that file
+- whether `base_resume.txt` exists and is not empty
+- whether `ANTHROPIC_API_KEY` is set correctly
+- whether the captured page text looks too short or incomplete
 
-✅ **Next Month (Phase 2):**
-- Send to Rezi for AI refinement
-- Further optimize resume structure
+## Source Of Truth
 
----
-
-## 🆘 If Something Breaks
-
-**"ModuleNotFoundError: No module named 'anthropic'"**
-```bash
-pip install anthropic
-```
-
-**"CLAUDE_API_KEY not found"**
-- Check `.env` file exists in same folder as `config.py`
-- Make sure it has `CLAUDE_API_KEY=sk-ant-...`
-
-**"Permission denied"**
-```bash
-chmod +x *.py
-```
-
-**"Python version error"**
-```bash
-# Install Python 3.9+
-python3 --version  # Should be 3.9, 3.10, 3.11, or 3.12+
-```
-
----
-
-## 📚 Next Learning Steps
-
-Once you have this working:
-
-1. **Learn about Claude prompting:** https://docs.anthropic.com/claude/docs/build-with-claude/prompt-engineering/overview
-
-2. **Explore the scrapers:** Start with Indeed (friendlier than LinkedIn)
-
-3. **Customize your career context** in `config.py` for better tailoring
-
-4. **Read Phase 2 & 3** in `RESUME_AUTOMATION_SPEC.md` for next steps
-
----
-
-## ✨ Success Indicators
-
-You'll know you're ready when:
-- ✅ `python3 tailor_client.py` runs without errors
-- ✅ You can see a tailored resume output
-- ✅ `resumes/` folder has `.docx` and `.pdf` files
-- ✅ Files open correctly in Word/PDF reader
-
----
-
-**You're all set! Start tailoring resumes and land more interviews. Good luck! 🚀**
+- `README.md` is the main source of truth.
+- `JOB_INTAKE_SETUP.md` has the extension/intake-specific details.
