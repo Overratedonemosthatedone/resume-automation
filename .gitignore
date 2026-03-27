@@ -1,0 +1,32 @@
+# API Keys and Secrets (CRITICAL)
+.env
+
+# Python environment
+venv/
+__pycache__/
+*.pyc
+
+# Your Personal Data/Database
+database/
+resumes/
+*.sqlite3
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Python
+venv/
+*.pyc
+__pycache__/
+
+# YOUR DATA (PRIVATE!)
+.env
+database/db.sqlite3
+resumes/
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
