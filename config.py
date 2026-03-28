@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(dotenv_path=Path(__file__).with_name(".env"), override=True)
 
 # ============================================================================
 # API Keys & Credentials
@@ -16,6 +16,20 @@ REZI_API_KEY = os.getenv('REZI_API_KEY', '')
 MAX_RETRIES = 3
 RETRY_DELAY = 5.0  # seconds between retries for API calls
 BATCH_DELAY = 1.0  # seconds between batch requests
+
+
+def mask_secret(value: str | None, prefix: int = 12, suffix: int = 4) -> str:
+    """Return a short, non-sensitive fingerprint for a secret-like value."""
+    if not isinstance(value, str):
+        return "<empty>"
+
+    cleaned = value.strip()
+    if not cleaned:
+        return "<empty>"
+
+    visible_prefix = cleaned[:prefix]
+    visible_suffix = cleaned[-suffix:] if len(cleaned) > suffix else cleaned
+    return f"len={len(cleaned)} prefix='{visible_prefix}' suffix='{visible_suffix}'"
 # ============================================================================
 # File Paths
 # ============================================================================

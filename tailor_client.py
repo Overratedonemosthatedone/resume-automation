@@ -24,7 +24,7 @@ class ResumeTC:
             api_key: Optional Anthropic API key
             base_resume_text: Full text of your base resume
         """
-        self.api_key = self._resolve_api_key(api_key)
+        self.api_key, self.api_key_source = self._resolve_api_key_details(api_key)
         if not self.api_key:
             raise ValueError(
                 "Anthropic API key not configured. Set ANTHROPIC_API_KEY "
@@ -37,6 +37,11 @@ class ResumeTC:
         self.max_tokens = config.CLAUDE_MAX_TOKENS
         
         logger.info(f"ResumeTC initialized with model: {self.model}")
+        logger.info(
+            "Anthropic API key resolved from {} ({})",
+            self.api_key_source,
+            config.mask_secret(self.api_key),
+        )
 
     @staticmethod
     def _clean_api_key(value):
@@ -44,22 +49,27 @@ class ResumeTC:
         return value.strip() if isinstance(value, str) else ""
 
     @classmethod
-    def _resolve_api_key(cls, api_key=None):
-        """Resolve the API key with environment variables taking precedence."""
+    def _resolve_api_key_details(cls, api_key=None):
+        """Resolve the API key and record which source supplied it."""
         candidates = [
-            os.environ.get("ANTHROPIC_API_KEY"),
-            api_key,
-            getattr(config, "ANTHROPIC_API_KEY", ""),
-            os.environ.get("CLAUDE_API_KEY"),
-            getattr(config, "CLAUDE_API_KEY", ""),
+            ("os.environ[ANTHROPIC_API_KEY]", os.environ.get("ANTHROPIC_API_KEY")),
+            ("api_key arg", api_key),
+            ("config.ANTHROPIC_API_KEY", getattr(config, "ANTHROPIC_API_KEY", "")),
+            ("os.environ[CLAUDE_API_KEY]", os.environ.get("CLAUDE_API_KEY")),
+            ("config.CLAUDE_API_KEY", getattr(config, "CLAUDE_API_KEY", "")),
         ]
 
-        for candidate in candidates:
+        for source, candidate in candidates:
             cleaned = cls._clean_api_key(candidate)
             if cleaned:
-                return cleaned
+                return cleaned, source
 
-        return ""
+        return "", "unconfigured"
+
+    @classmethod
+    def _resolve_api_key(cls, api_key=None):
+        """Resolve the API key with environment variables taking precedence."""
+        return cls._resolve_api_key_details(api_key)[0]
 
     @staticmethod
     def _extract_text(response):

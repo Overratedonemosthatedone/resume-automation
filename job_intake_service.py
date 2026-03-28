@@ -24,9 +24,18 @@ QUEUE_DIR.mkdir(parents=True, exist_ok=True)
 queue_processor = JobQueueProcessor()
 
 
+def log_runtime_configuration() -> None:
+    """Log a small masked fingerprint for key runtime settings."""
+    logger.info(
+        "Configured Anthropic API key fingerprint: {}",
+        config.mask_secret(config.ANTHROPIC_API_KEY),
+    )
+
+
 @asynccontextmanager
 async def app_lifespan(_: FastAPI):
     """Start and stop the built-in queue worker alongside the API service."""
+    log_runtime_configuration()
     try:
         queue_processor.start()
     except Exception as exc:
