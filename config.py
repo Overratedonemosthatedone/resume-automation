@@ -30,6 +30,14 @@ def mask_secret(value: str | None, prefix: int = 12, suffix: int = 4) -> str:
     visible_prefix = cleaned[:prefix]
     visible_suffix = cleaned[-suffix:] if len(cleaned) > suffix else cleaned
     return f"len={len(cleaned)} prefix='{visible_prefix}' suffix='{visible_suffix}'"
+
+
+def load_optional_text(path: Path) -> str:
+    """Load a local text file when present, otherwise return an empty string."""
+    if not path.exists():
+        return ""
+
+    return path.read_text(encoding="utf-8").strip()
 # ============================================================================
 # File Paths
 # ============================================================================
@@ -38,6 +46,7 @@ RESUME_OUTPUT_PATH = PROJECT_ROOT / 'resumes'
 DATABASE_PATH = PROJECT_ROOT / 'database' / 'db.sqlite3'
 LOG_PATH = PROJECT_ROOT / 'logs'
 BASE_RESUME_PATH = PROJECT_ROOT / 'base_resume.txt'
+CANDIDATE_CONTEXT_PATH = PROJECT_ROOT / 'candidate_context.txt'
 JOB_QUEUE_ROOT = PROJECT_ROOT / 'job_queue'
 JOB_QUEUE_PENDING_PATH = JOB_QUEUE_ROOT / 'pending'
 JOB_QUEUE_PROCESSED_PATH = JOB_QUEUE_ROOT / 'processed'
@@ -68,33 +77,9 @@ SCRAPER_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.
 CLAUDE_MODEL = 'claude-haiku-4-5'  # Latest Haiku 4.5 alias
 CLAUDE_MAX_TOKENS = 2000  # Max tokens for resume generation
 
-# Your career context (used in resume tailoring prompts)
-RESUME_CONTEXT = """
-Additional career context and achievements to highlight:
-
-- 8+ years of software engineering experience
-- Specialized in full-stack web development (Python, JavaScript/React, PostgreSQL)
-- Led cross-functional teams of 5-10 engineers
-- Open source contributor (Python, JavaScript ecosystems)
-- Strong background in cloud infrastructure (AWS, GCP), CI/CD pipelines, and DevOps
-- Known for mentoring junior engineers and building high-performing teams
-- Passionate about scalability, code quality, and developer experience
-
-KEY ACHIEVEMENTS:
-- Architected and launched microservices platform handling 1M+ requests/day
-- Reduced API latency by 60% through caching and optimization strategies
-- Built automated testing pipeline that reduced bugs in production by 75%
-- Mentored 3+ junior engineers who were promoted to lead roles
-- Open source projects: 500+ GitHub stars, 50+ community contributions
-
-TECHNICAL SKILLS:
-- Languages: Python, JavaScript/TypeScript, SQL, Go, Bash
-- Frameworks: Django, FastAPI, React, Node.js, Next.js
-- Databases: PostgreSQL, MongoDB, Redis
-- Cloud: AWS (EC2, S3, Lambda, RDS), GCP (Compute Engine, Cloud SQL)
-- Tools: Docker, Kubernetes, Git, Jenkins, GitHub Actions, Terraform
-- Methodologies: Agile, TDD, code review, pair programming
-"""
+# Optional local candidate context used in tailoring prompts.
+# Keep the actual resume content in base_resume.txt and supplemental framing here.
+RESUME_CONTEXT = load_optional_text(CANDIDATE_CONTEXT_PATH)
 
 # ============================================================================
 # Database Settings

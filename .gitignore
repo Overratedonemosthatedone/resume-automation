@@ -72,5 +72,6 @@ tmp4ey0g1kv/
 # (keep API keys, credentials, and other secrets out of VCS)
 .env
 base_resume.txt
+candidate_context.txt
 
 # End of file

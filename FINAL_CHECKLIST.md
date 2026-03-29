@@ -17,6 +17,7 @@ Use this before you commit the repo to GitHub.
 - [ ] `.env` exists locally.
 - [ ] `ANTHROPIC_API_KEY` is set.
 - [ ] `base_resume.txt` exists, is not empty, and was created for local use from `base_resume.example.txt`.
+- [ ] `candidate_context.txt` is in the right place if you want extra tailoring context.
 
 ## Documentation
 
@@ -40,7 +41,9 @@ Use this before you commit the repo to GitHub.
 - [ ] `venv/` will not be committed.
 - [ ] `logs/`, `resumes/`, and `job_queue/` will not be committed.
 - [ ] Personal `base_resume.txt` will not be committed.
+- [ ] Personal `candidate_context.txt` will not be committed.
 - [ ] `base_resume.example.txt` is the tracked safe template instead.
+- [ ] `candidate_context.example.txt` is the tracked safe template instead.
 
 ## Honest Notes
 

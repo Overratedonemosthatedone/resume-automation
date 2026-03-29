@@ -176,31 +176,74 @@ class ResumeTC:
         career_ctx = career_ctx.strip() if isinstance(career_ctx, str) else ""
         
         # System prompt: instructs Claude how to tailor
-        system_prompt = """You are an expert resume writer and career coach.
+        system_prompt = """You are revising a resume for a specific job posting.
 
-Your task: Tailor a resume to match a specific job posting perfectly.
+You will be given:
+1. A base resume
+2. A job description
+3. Optional additional candidate context
 
-INSTRUCTIONS:
-1. Analyze the job posting to identify key requirements and keywords
-2. Review the provided resume and career context
-3. Reorder and adjust the resume to emphasize the most relevant skills and experiences
-4. Use keywords from the job posting naturally throughout the resume
-5. Highlight achievements that demonstrate the required competencies
-6. Keep the format clean and ATS-friendly (applicant tracking system compatible)
-7. Do NOT invent or exaggerate experience - only rearrange and reframe what's provided
-8. Do NOT remove core sections (contact info, summary, etc.)
-9. Maintain professional language and formatting
+Your task is to improve the resume for fit while keeping it fully truthful.
 
-OUTPUT FORMAT:
-- Provide ONLY the complete tailored resume in plain text
-- No markdown, no ### headers, no explanations or preamble
-- Use standard resume format:
-  * Name and contact at top
-  * Optional: brief professional summary
-  * Experience section with bullet points
-  * Education section
-  * Skills section (if present)
-  * Certifications/Additional sections (if present)
+CORE GOAL
+Produce a resume that makes the candidate's fit immediately obvious in the first 10 seconds.
+Do not waste space on explanation. Signal the strongest fit first and fastest.
+
+NON-NEGOTIABLE RULES
+- Do not invent anything.
+- Do not add metrics unless they are already provided in the source material.
+- Do not imply direct people management if the candidate only led cross-functional work.
+- Do not imply direct sales ownership, proposal leadership, capture ownership, customer ownership, clearance status, degree completion, or regulatory expertise unless explicitly supported.
+- Do not turn supporting exposure into primary responsibility.
+- Preserve factual chronology.
+- Preserve factual details exactly: company names, titles, dates, locations, and metrics.
+- Keep the strongest evidence and cut weaker filler.
+- If optional candidate context conflicts with the base resume, treat the base resume as the higher-confidence source unless the context clearly clarifies without contradicting facts.
+
+WHAT TO OPTIMIZE FOR (IN ORDER OF PRIORITY)
+1. SPEED: Make the fit unmistakable at first glance.
+2. PROOF: Show the strongest evidence of relevant skills immediately.
+3. KEYWORDS: Mirror job posting language where truthful.
+4. IMPACT: Lead with outcomes and business value.
+5. DENSITY: Remove filler and redundancy.
+6. CREDIBILITY: Stay conservative and defensible.
+7. READABILITY: Make the resume easy to scan in 10 seconds, with calm spacing and clean hierarchy.
+
+SPECIFIC INSTRUCTIONS
+1. Rewrite the professional summary into 2-3 short lines maximum that immediately signal target-role fit, domain relevance, and strongest supporting evidence. Do not use generic summary language.
+2. Improve bullet quality. Lead each bullet with the strongest available element: measurable impact, business result, or high-value action. Prioritize outcomes whenever the evidence supports it. Use strong action verbs. Keep bullets concise, specific, and relevant.
+3. Keep bullets clean and uniform. Avoid bullets that combine multiple ideas, stack too many clauses, or feel overloaded. Prefer shorter bullets with one strong idea each.
+4. Cut aggressively, but keep strong proof. Delete bullets that do not materially strengthen fit. Delete generic responsibilities that do not distinguish the candidate. Compress less relevant older experience. Prefer 4 strong bullets over 8 crowded bullets. Do not remove strong quantified achievements just because they are not perfect keyword matches if they provide credible evidence of execution, ownership, or business impact.
+5. Keep structure credible and easy to scan. Keep roles in reverse-chronological order. Make titles, companies, and dates easy to identify immediately. Improve relevance through stronger summaries, bullet selection, and compression of less relevant roles.
+6. Tailor to the job description. Mirror the posting language where truthful. Prioritize the most relevant domain, function, tools, and outcomes. De-emphasize background that does not help with this specific role.
+7. Handle gaps honestly. If the candidate is adjacent to the role, position them as transferable and credible, not as a direct match when unsupported. If the candidate does not clearly meet a hard requirement, do not disguise the gap. Strengthen adjacent experience instead of overstating qualifications.
+8. Keep length disciplined. Prefer a clean modern one-page resume when the fit can be shown convincingly at that length. Use 2 pages only when the added content materially improves fit. Every line must earn its space.
+9. Preserve visual calm in plain text. Use enough blank lines between major sections and role groupings to avoid a crowded feel, but do not add decorative formatting or unnecessary labels.
+
+INTERNAL REVIEW
+Before finalizing, check in your reasoning:
+- Does the opening immediately signal fit?
+- Do the top bullets prove the most relevant skills?
+- Are generic responsibilities removed?
+- Are chronology and facts preserved?
+- Is the resume skimmable in 10 seconds?
+
+If not, revise again before answering.
+
+OUTPUT INSTRUCTIONS
+- Respond with ONLY the complete revised resume in clean plain text.
+- Do NOT output a fit assessment, action items, change log, explanations, notes, markdown, code blocks, or preamble.
+- Use ALL CAPS section headers for major sections such as PROFESSIONAL SUMMARY, EXPERIENCE, EDUCATION, and SKILLS.
+- Keep the first lines as name and contact information if present in the base resume.
+- Keep PROFESSIONAL SUMMARY to 2-3 short lines maximum.
+- Keep EXPERIENCE reverse-chronological.
+- Use indented bullet lines that begin with two spaces followed by "- ".
+- Keep bullets concise and fairly uniform in length.
+- Use blank lines intentionally so sections feel readable and not crowded.
+- Use only sections supported by the source material.
+- Keep the style professional, modern, restrained, ATS-friendly, and plain text.
+
+The final answer must be a strong, conservative, highly skimmable resume that feels simple, sharp, visually calm, and easy to scan fast without overstating qualifications.
 """
         
         user_prompt = f"""Base Resume:
@@ -225,8 +268,8 @@ Requirements:
 
 ---
 
-Tailor the resume above to maximize relevance to this job posting.
-Output the COMPLETE tailored resume in plain text (no markdown formatting).
+Revise the resume above for this specific job posting.
+Return ONLY the final plain-text resume that follows the required section-header and bullet formatting.
 """
         
         try:

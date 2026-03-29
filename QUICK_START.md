@@ -47,7 +47,18 @@ notepad base_resume.txt
 
 Then replace the sample content with your real resume text. `base_resume.txt` is local-only and should not be committed.
 
-## 6. Start The Local Python Service
+## 6. Optional: Create `candidate_context.txt`
+
+If you want better tailoring quality, create the optional context file:
+
+```powershell
+Copy-Item candidate_context.example.txt candidate_context.txt
+notepad candidate_context.txt
+```
+
+Keep extra candidate context there instead of mixing it into `base_resume.txt`.
+
+## 7. Start The Local Python Service
 
 ```powershell
 venv\Scripts\activate
@@ -60,7 +71,7 @@ Optional health check:
 Invoke-RestMethod -Uri http://127.0.0.1:8765/health
 ```
 
-## 7. Load The Chrome Extension
+## 8. Load The Chrome Extension
 
 Open `chrome://extensions`, enable Developer mode, click `Load unpacked`, and select:
 
@@ -68,13 +79,13 @@ Open `chrome://extensions`, enable Developer mode, click `Load unpacked`, and se
 c:\Users\12485\OneDrive\Desktop\Python\Projects\Resume Automation System\resume-automation\chrome_resume_tailor
 ```
 
-## 8. Run Your First Real Test
+## 9. Run Your First Real Test
 
 1. Open a job posting page in Chrome.
 2. Click `Send to Resume Tailor`.
 3. Watch the service logs.
 
-## 9. Success Looks Like
+## 10. Success Looks Like
 
 - The service prints the saved intake JSON path.
 - The intake file appears in `job_queue/pending/` and then moves to `job_queue/processed/`.
@@ -83,7 +94,7 @@ c:\Users\12485\OneDrive\Desktop\Python\Projects\Resume Automation System\resume-
   - `.pdf`
   - `.json` metadata sidecar
 
-## 10. If The Job Ends Up In `failed`
+## 11. If The Job Ends Up In `failed`
 
 Check:
 

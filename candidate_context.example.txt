@@ -1,0 +1,56 @@
+Additional candidate context and achievements to highlight
+
+Strongest role fit areas:
+- Continuous improvement
+- Operations and business process improvement
+- Project and program coordination
+- Workflow automation and systems implementation
+- Cross-functional execution
+- Quality and compliance-supporting operational improvement
+
+Leadership scope:
+- Led cross-functional initiatives involving quality, operations, supply chain, IT, and leadership
+- Coordinated project work across teams rather than through formal large-scale people management
+- Facilitated problem-solving efforts with small cross-functional groups
+- Presented ideas, risks, and progress updates to leadership
+- Created documentation, standard work, and training-oriented materials to support adoption
+
+Industries or environments with strongest relevance:
+- Manufacturing
+- High-mix, low-volume operations
+- Quality-driven and document-intensive environments
+- ERP-dependent operational environments
+- Microsoft-based business systems environments
+- Process-heavy organizations undergoing modernization or automation
+
+Key achievements to emphasize:
+- Built and deployed automation that reduced manual administrative work tied to certification and document handling
+- Saved approximately 2,000 documents in six months through an automated Power Automate workflow
+- Helped streamline certification packet preparation by extracting data from emails and attachments, structuring it, and applying standardized naming and storage practices
+- Developed a Python-based solution to categorize a backlog of 700+ uncategorized problem reports, reducing manual effort
+- Led and supported cross-functional improvement efforts focused on process accuracy, compliance, and operational consistency
+- Built internal tools and apps to support audit data collection, issue tracking, and process visibility
+- Standardized workflows and documentation to reduce friction and improve repeatability
+
+Strengths to prioritize:
+- Process improvement
+- Operational rigor
+- Structured problem solving
+- Cross-functional coordination
+- Stakeholder communication
+- Execution under ambiguity
+- Documentation and standardization
+- Workflow automation
+- Translating business needs into practical systems and processes
+- Combining strategic improvement thinking with hands-on execution
+
+True context not always obvious from the resume:
+- The candidate’s strongest work is highly cross-functional, even when job titles may sound narrower
+- Frequently operates as a bridge between business stakeholders, frontline operations, quality requirements, and technical tools
+- Often takes ambiguous operational problems and turns them into structured projects, workflows, or automation solutions
+- Comfortable working both in strategy/planning conversations and in detailed implementation work
+- Brings a practical improvement mindset that blends process discipline, technology adoption, and change support
+- Has experience introducing and applying automation and AI tools in business operations, especially where document handling, workflow consistency, and manual effort are pain points
+
+Optional framing note for the tailoring model:
+Prioritize roles that value continuous improvement, operations, project coordination, business systems, process standardization, workflow automation, and cross-functional execution. Emphasize measurable operational impact where supported by the base resume, but do not invent metrics or imply formal authority that is not explicitly established.

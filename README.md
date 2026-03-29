@@ -53,12 +53,52 @@ Chrome job page
 - `document_generators.py`
   Existing DOCX/PDF generation and naming/versioning logic.
 
+## Where To Edit What
+
+Use this section as the quick GitHub navigation guide for the repo.
+
+- `.env`
+  Local API keys and environment settings. Not committed.
+- `base_resume.txt`
+  Your clean source resume for tailoring. Local-only.
+- `candidate_context.txt`
+  Optional local-only context for strengths, emphasis, and truthful supplemental framing.
+- `tailor_client_haiku_optimized.py`
+  Primary Claude prompt and tailoring behavior used by the current automated flow.
+- `tailor_client.py`
+  Legacy/manual tailoring client kept in sync for reference and fallback use.
+- `job_intake_service.py`
+  Local FastAPI service that receives Chrome captures.
+- `job_queue_processor.py`
+  Queue worker that turns staged intake JSON into tailored resume artifacts.
+- `document_generators.py`
+  Plain-text resume parsing plus DOCX/PDF generation and file naming.
+- `chrome_resume_tailor/`
+  Chrome extension files for one-click job capture from the browser.
+
+## Current Tailoring Behavior
+
+The current prompt is designed to produce resumes that are:
+
+- fully truthful and conservative
+- fit-first and fast to scan
+- concise, skimmable, and ATS-friendly
+- biased toward clean one-page-style readability when the evidence supports it
+
+It also explicitly pushes Claude to:
+
+- keep the summary short
+- keep bullets concise and uniform
+- reduce filler and overloaded bullets
+- preserve chronology and avoid overstatement
+
 ## Requirements
 
 - Windows with Google Chrome installed.
 - Python 3.9 or newer.
 - A valid Anthropic API key.
 - A local `base_resume.txt` in the project root.
+- Optional local `candidate_context.txt` for extra tailoring context.
 
 ### Required Environment Variable
 
@@ -82,6 +122,21 @@ Copy-Item base_resume.example.txt base_resume.txt
 
 If `base_resume.txt` is missing or empty, the queue worker will move intake files to `job_queue/failed/`.
 
+### Optional Local File
+
+- `candidate_context.txt`
+
+This is the better place for supplemental candidate context that should influence tailoring but should not live inside the resume body itself.
+
+Use it for:
+
+- strengths to emphasize
+- leadership scope
+- preferred role framing
+- truthful achievements or context that help the model prioritize content
+
+Keep `base_resume.txt` as the clean resume source. Keep `candidate_context.txt` as extra prompt context.
+
 ## Project Layout
 
 ```text
@@ -94,6 +149,8 @@ resume-automation/
 |-- document_generators.py         # Existing DOCX/PDF + FileManager logic
 |-- base_resume.example.txt        # Safe tracked template for local setup
 |-- base_resume.txt                # Local-only base resume source (ignored)
+|-- candidate_context.example.txt  # Safe tracked template for extra local context
+|-- candidate_context.txt          # Local-only supplemental context (ignored)
 |-- .env                           # Local environment variables
 |-- .env.example                   # Template environment file
 |-- job_queue/
@@ -152,7 +209,18 @@ notepad base_resume.txt
 
 Then replace the sample content with your real resume text for local use.
 
-### 6. Start The Local Python Service
+### 6. Optional: Create `candidate_context.txt`
+
+If you want stronger tailoring quality, create the optional context file from the tracked template:
+
+```powershell
+Copy-Item candidate_context.example.txt candidate_context.txt
+notepad candidate_context.txt
+```
+
+Put truthful supplemental context there instead of adding meta-sections inside `base_resume.txt`.
+
+### 7. Start The Local Python Service
 
 This single command starts both the intake API and the background queue worker:
 
@@ -172,7 +240,7 @@ Optional health check:
 Invoke-RestMethod -Uri http://127.0.0.1:8765/health
 ```
 
-### 7. Load The Chrome Extension
+### 8. Load The Chrome Extension
 
 Open `chrome://extensions`, enable Developer mode, click `Load unpacked`, and select:
 
@@ -373,7 +441,9 @@ Common reasons:
 
 - `.env` and local env variants are local-only and should not be committed.
 - `base_resume.txt` is local-only and should not be committed if it contains your real resume.
+- `candidate_context.txt` is local-only and should not be committed if it contains personal context.
 - `base_resume.example.txt` is the safe tracked template intended for the repository.
+- `candidate_context.example.txt` is the safe tracked template for supplemental context.
 
 ## Honest Notes
 

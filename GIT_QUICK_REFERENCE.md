@@ -38,6 +38,7 @@ git push
 - `job_queue/`
 - `database/db.sqlite3`
 - `base_resume.txt`
+- `candidate_context.txt`
 
 ## Quick Repo Safety Check
 
@@ -57,10 +58,12 @@ You should not see these staged:
 - `job_queue/`
 - `database/db.sqlite3`
 - `base_resume.txt`
+- `candidate_context.txt`
 
 You should see this available to commit:
 
 - `base_resume.example.txt`
+- `candidate_context.example.txt`
 
 ## Good Commit Message Examples
 

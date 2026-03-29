@@ -22,12 +22,15 @@ This project should keep these local:
 - `job_queue/`
 - `database/db.sqlite3`
 - `base_resume.txt`
+- `candidate_context.txt`
 
 Also be careful with:
 
 - `base_resume.example.txt`
+- `candidate_context.example.txt`
 
 `base_resume.example.txt` is the safe tracked template. `base_resume.txt` is the local-only file the app actually reads.
+`candidate_context.example.txt` is the safe tracked template for supplemental context. `candidate_context.txt` is the local-only file used to supply extra candidate framing during tailoring.
 
 ## First Push
 
@@ -47,7 +50,9 @@ Verify:
 - generated artifacts are not staged
 - the extension folder `chrome_resume_tailor/` is included
 - `base_resume.example.txt` is included
+- `candidate_context.example.txt` is included
 - `base_resume.txt` is not included
+- `candidate_context.txt` is not included
 
 ## Useful Commands
 
