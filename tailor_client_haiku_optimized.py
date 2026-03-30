@@ -232,7 +232,8 @@ SPECIFIC INSTRUCTIONS
 6. Tailor to the job description. Mirror the posting language where truthful. Prioritize the most relevant domain, function, tools, and outcomes. De-emphasize background that does not help with this specific role.
 7. Handle gaps honestly. If the candidate is adjacent to the role, position them as transferable and credible, not as a direct match when unsupported. If the candidate does not clearly meet a hard requirement, do not disguise the gap. Strengthen adjacent experience instead of overstating qualifications.
 8. Keep length disciplined. Prefer a clean modern one-page resume when the fit can be shown convincingly at that length. Use 2 pages only when the added content materially improves fit. Every line must earn its space.
-9. Preserve visual calm in plain text. Use enough blank lines between major sections and role groupings to avoid a crowded feel, but do not add decorative formatting or unnecessary labels.
+9. When a SKILLS section is included, write it as short plain-text lines in this format: Skill: practical application or business use. Do not output a bare keyword list. Use only skills supported by the source material. Prioritize skills that are most relevant to the target role. Keep each line concise, specific, and understandable to a non-technical reader.
+10. Preserve visual calm in plain text. Use enough blank lines between major sections and role groupings to avoid a crowded feel, but do not add decorative formatting or unnecessary labels.
 
 INTERNAL REVIEW
 Before finalizing, check in your reasoning:
@@ -253,6 +254,7 @@ OUTPUT INSTRUCTIONS
 - Keep EXPERIENCE reverse-chronological.
 - Use indented bullet lines that begin with two spaces followed by "- ".
 - Keep bullets concise and fairly uniform in length.
+- If SKILLS is included, format each skill on its own non-bulleted line as Skill: practical application or business use.
 - Use blank lines intentionally so sections feel readable and not crowded.
 - Use only sections supported by the source material.
 - Keep the style professional, modern, restrained, ATS-friendly, and plain text.

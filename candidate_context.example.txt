@@ -32,6 +32,7 @@ Key achievements to emphasize:
 - Built internal tools and apps to support audit data collection, issue tracking, and process visibility
 - Standardized workflows and documentation to reduce friction and improve repeatability
 
+
 Strengths to prioritize:
 - Process improvement
 - Operational rigor
