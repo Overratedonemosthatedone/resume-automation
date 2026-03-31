@@ -183,12 +183,9 @@ class ResumeTC:
     
     def _get_system_prompt(self):
         """
-        Get the system prompt with cache control markers.
-        
-        This prompt is identical for every job, so it benefits from caching.
-        Using cache_control ensures the same prompt is reused across requests.
+        Get the reusable system prompt text block.
         """
-        return {
+        block = {
             "type": "text",
             "text": """You are revising a resume for a specific job posting.
 
@@ -260,35 +257,63 @@ OUTPUT INSTRUCTIONS
 - Keep the style professional, modern, restrained, ATS-friendly, and plain text.
 
 The final answer must be a strong, conservative, highly skimmable resume that feels simple, sharp, visually calm, and easy to scan fast without overstating qualifications.""",
-            "cache_control": {"type": "ephemeral"}  # Cache this prompt
         }
+        logger.debug(
+            f"System prompt block size: chars={len(block['text'])}, rough_tokens={len(block['text']) // 4}"
+        )
+        return block
     
     def _get_base_resume_block(self):
         """
-        Get the base resume content with cache control.
+        Get the base resume content block.
         
         This is the largest block of text and is identical for every job,
-        so caching here saves the most tokens.
+        so including it in the cached system content saves the most tokens.
         """
-        return {
+        block = {
             "type": "text",
             "text": f"""BASE RESUME:
 {self.base_resume}""",
-            "cache_control": {"type": "ephemeral"}  # Cache this too
         }
+        logger.debug(
+            f"Base resume block size: chars={len(block['text'])}, rough_tokens={len(block['text']) // 4}"
+        )
+        return block
     
     def _get_career_context_block(self, career_context=None):
-        """Get career context with cache control if applicable."""
+        """Get the career context text block if applicable."""
         context_text = config.RESUME_CONTEXT if career_context is None else career_context
         context_text = context_text.strip() if isinstance(context_text, str) else ""
         if not context_text:
             return None
 
-        return {
+        block = {
             "type": "text",
             "text": f"""ADDITIONAL CAREER CONTEXT & KEY ACHIEVEMENTS:
 {context_text}""",
-            "cache_control": {"type": "ephemeral"}  # Cache this too
+        }
+        logger.debug(
+            f"Career context block size: chars={len(block['text'])}, rough_tokens={len(block['text']) // 4}"
+        )
+        return block
+
+    def _get_combined_system_block(self, career_context=None):
+        """Get one combined system block with a single cache breakpoint."""
+        system_prompt_block = self._get_system_prompt()
+        base_resume_block = self._get_base_resume_block()
+        career_context_block = self._get_career_context_block(career_context)
+
+        text_sections = [
+            system_prompt_block["text"],
+            base_resume_block["text"],
+        ]
+        if career_context_block:
+            text_sections.append(career_context_block["text"])
+
+        return {
+            "type": "text",
+            "text": "\n\n".join(text_sections),
+            "cache_control": {"type": "ephemeral"},
         }
     
     def tailor(self, job_title, job_description, job_requirements, 
@@ -297,9 +322,7 @@ The final answer must be a strong, conservative, highly skimmable resume that fe
         Tailor the base resume to a specific job posting.
         
         Uses prompt caching to save 90% on repeated content:
-        - System prompt (cached)
-        - Base resume (cached)
-        - Career context (cached)
+        - Combined system prompt + base resume + career context block (cached)
         - Job details (unique, not cached)
         
         Args:
@@ -321,14 +344,8 @@ The final answer must be a strong, conservative, highly skimmable resume that fe
         try:
             logger.debug(f"Calling Claude Haiku 4.5 for job: {job_title}")
             
-            # Build messages with cache control on repeated blocks
-            system_blocks = [
-                self._get_system_prompt(),
-                self._get_base_resume_block(),
-            ]
-            career_context_block = self._get_career_context_block(career_context)
-            if career_context_block:
-                system_blocks.append(career_context_block)
+            # Build messages with cache control on one combined repeated block
+            system_blocks = [self._get_combined_system_block(career_context)]
             
             # User message with job-specific content (not cached, changes each time)
             user_message = f"""Target Job Posting:
@@ -346,6 +363,14 @@ Requirements:
 Revise the resume above for this specific job posting.
 Return ONLY the final plain-text resume that follows the required section-header and bullet formatting."""
             
+            for i, block in enumerate(system_blocks):
+                block_text = block.get("text", "")
+                logger.debug(
+                    f"System block {i}: cache_control_present={'cache_control' in block}, "
+                    f"cache_control={block.get('cache_control')}, chars={len(block_text)}, "
+                    f"preview={block_text[:80]!r}"
+                )
+
             # Make API call with prompt caching
             response = self.client.messages.create(
                 model=self.model,
@@ -356,7 +381,8 @@ Return ONLY the final plain-text resume that follows the required section-header
                         "role": "user",
                         "content": user_message  # Job-specific, not cached
                     }
-                ]
+                ],
+                extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
             )
             
             tailored_text = self._extract_text(response)
