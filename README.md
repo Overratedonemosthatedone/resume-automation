@@ -10,10 +10,11 @@ The working system today is:
 2. Click the `Send to Resume Tailor` extension button.
 3. The extension sends captured job data to the local intake service at `http://127.0.0.1:8765/intake`.
 4. The intake service normalizes the payload and saves one JSON record in `job_queue/pending/`.
-5. A built-in background worker automatically processes that staged JSON.
-6. The worker reuses the existing tailoring engine and document generators.
-7. Generated resume artifacts are saved in `resumes/`.
-8. The intake JSON moves to `job_queue/processed/` or `job_queue/failed/`.
+5. Captures remain queued in `job_queue/pending/` until you click `Process Queue` in the extension popup.
+6. The built-in background worker processes the currently queued batch on demand.
+7. The worker reuses the existing tailoring engine and document generators.
+8. Generated resume artifacts are saved in `resumes/`.
+9. The intake JSON moves to `job_queue/processed/` or `job_queue/failed/`.
 
 This is the main source of truth for the current implementation.
 
@@ -33,6 +34,7 @@ Chrome job page
   -> POST http://127.0.0.1:8765/intake
   -> job_intake_service.py
   -> job_queue/pending/*.json
+  -> POST http://127.0.0.1:8765/process-batch when you click Process Queue
   -> built-in background worker (job_queue_processor.py)
   -> tailor_client_haiku_optimized.ResumeTC.tailor(...)
   -> document_generators.py
@@ -362,11 +364,11 @@ For each resume set, a JSON sidecar with the same stem is written beside the res
 
 ## What Success Looks Like
 
-After clicking the Chrome extension button:
+After clicking `Send to Resume Tailor` in the Chrome extension popup:
 
 - the service logs that intake was received
-- a JSON file appears briefly in `job_queue/pending/`
-- the worker logs that tailoring started
+- a JSON file appears in `job_queue/pending/`
+- after clicking `Process Queue`, the worker logs that tailoring started
 - new resume artifacts appear in `resumes/`
 - the intake JSON moves to `job_queue/processed/`
 
@@ -409,9 +411,11 @@ Common reasons:
 
 ### The worker does not seem to process new files
 
-- Check `http://127.0.0.1:8765/health` and confirm `worker_running` is `true`.
+- Confirm the intake JSON is still present in `job_queue/pending/`.
+- Click `Process Queue` in the extension popup to start a manual batch.
+- Check `http://127.0.0.1:8765/health`. `worker_running` may stay `false` until you trigger processing.
 - Check the service console logs.
-- Restart the service. The worker scans `job_queue/pending/` on startup.
+- Restart the service if needed, then trigger the batch again from the extension.
 
 ### Styling Or Output Polish Needs Work
 

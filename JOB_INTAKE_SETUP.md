@@ -72,7 +72,8 @@ The extension sends best-effort job-page data to `POST /intake`, including:
 
 - the service logs `intake received`
 - a JSON file is saved in `job_queue/pending/`
-- the worker picks it up automatically
+- the file stays queued until you click `Process Queue`
+- after you trigger processing, the worker picks it up
 - the file moves to `job_queue/processed/`
 - resume artifacts appear in `resumes/`
 

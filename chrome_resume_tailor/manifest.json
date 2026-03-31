@@ -15,6 +15,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Send to Resume Tailor"
+    "default_title": "Send to Resume Tailor",
+    "default_popup": "popup.html"
   }
 }

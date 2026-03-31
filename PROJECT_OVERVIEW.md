@@ -1,6 +1,6 @@
 # Project Overview
 
-This repository is a local automation system for capturing job postings from Chrome and generating tailored resume artifacts automatically.
+This repository is a local automation system for capturing job postings from Chrome, staging them in a local queue, and generating tailored resume artifacts on demand.
 
 ## High-Level Flow
 
@@ -8,6 +8,7 @@ This repository is a local automation system for capturing job postings from Chr
 Browser capture
   -> local intake service
   -> staged JSON in job_queue/pending/
+  -> manual Process Queue trigger
   -> background queue worker
   -> existing tailoring engine
   -> DOCX/PDF generation
@@ -31,8 +32,8 @@ Browser capture
 
 ### 3. Queue Worker
 
-- `job_queue_processor.py` is a built-in background worker started by the service.
-- It watches `job_queue/pending/`.
+- `job_queue_processor.py` is a built-in background worker triggered on demand.
+- It waits for an explicit batch request instead of automatically watching the queue.
 - It validates and processes staged intake files.
 - It moves each file to `processed` or `failed`.
 
@@ -79,9 +80,9 @@ The sidecar JSON records the output paths and artifact relationships.
 - Chrome extension capture
 - Local intake API
 - Pending/processed/failed queue lifecycle
-- Background automatic processing
+- Manual batch processing from the extension popup
 - Existing tailoring engine integration
-- Automatic DOCX/PDF generation
+- DOCX/PDF generation after an explicit queue trigger
 
 ## Important Limits
 

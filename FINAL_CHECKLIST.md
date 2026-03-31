@@ -8,9 +8,10 @@ Use this before you commit the repo to GitHub.
 - [ ] `http://127.0.0.1:8765/health` responds.
 - [ ] Chrome extension loads from `chrome_resume_tailor/`.
 - [ ] Clicking `Send to Resume Tailor` creates a normalized intake JSON.
+- [ ] Queued jobs remain in `job_queue/pending/` until `Process Queue` is clicked.
 - [ ] Successful runs move intake JSON to `job_queue/processed/`.
 - [ ] Failed runs move intake JSON to `job_queue/failed/`.
-- [ ] Resume artifacts are generated automatically in `resumes/`.
+- [ ] Clicking `Process Queue` generates resume artifacts in `resumes/`.
 
 ## Required Local Inputs
 

@@ -2,22 +2,37 @@ const INTAKE_ENDPOINT = "http://127.0.0.1:8765/intake";
 const DEFAULT_TITLE = "Send to Resume Tailor";
 const BADGE_CLEAR_DELAY_MS = 4500;
 
-chrome.action.onClicked.addListener(async (tab) => {
-  if (!tab.id) {
-    return;
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== "capture-tab") {
+    return undefined;
   }
 
-  if (!tab.url || !/^https?:/i.test(tab.url)) {
-    setBadge(tab.id, "ERR", "#b91c1c", "Open a job posting page before sending it.");
-    clearBadgeLater(tab.id);
-    return;
+  captureTab(message.tabId, message.tabUrl)
+    .then((result) => sendResponse({ ok: true, result }))
+    .catch((error) => {
+      const messageText = error && error.message ? error.message : "Unknown error";
+      sendResponse({ ok: false, error: messageText });
+    });
+
+  return true;
+});
+
+async function captureTab(tabId, tabUrl) {
+  if (!tabId) {
+    throw new Error("Open a job posting tab before sending it.");
+  }
+
+  if (!tabUrl || !/^https?:/i.test(tabUrl)) {
+    setBadge(tabId, "ERR", "#b91c1c", "Open a job posting page before sending it.");
+    clearBadgeLater(tabId);
+    throw new Error("Open a job posting page before sending it.");
   }
 
   try {
-    setBadge(tab.id, "...", "#1d4ed8", "Capturing the current job posting...");
+    setBadge(tabId, "...", "#1d4ed8", "Capturing the current job posting...");
 
     const injectionResults = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
+      target: { tabId },
       func: extractJobPageData,
     });
     const payload = injectionResults?.[0]?.result;
@@ -51,19 +66,21 @@ chrome.action.onClicked.addListener(async (tab) => {
 
     console.info("Resume Tailor intake saved:", parsedResponse);
     setBadge(
-      tab.id,
+      tabId,
       "OK",
       "#15803d",
       parsedResponse?.message || "Saved to the local Resume Tailor queue."
     );
+    return parsedResponse;
   } catch (error) {
     console.error("Resume Tailor capture failed:", error);
     const message = error && error.message ? error.message : "Unknown error";
-    setBadge(tab.id, "ERR", "#b91c1c", `Send to Resume Tailor failed: ${message}`);
+    setBadge(tabId, "ERR", "#b91c1c", `Send to Resume Tailor failed: ${message}`);
+    throw error;
+  } finally {
+    clearBadgeLater(tabId);
   }
-
-  clearBadgeLater(tab.id);
-});
+}
 
 function setBadge(tabId, text, color, title) {
   chrome.action.setBadgeText({ tabId, text });

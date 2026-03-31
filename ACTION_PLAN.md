@@ -9,14 +9,17 @@ This plan reflects the current working system, not the older manual copy/paste w
 3. Start the local Python service with `python job_intake_service.py`.
 4. Load the Chrome extension from `chrome_resume_tailor/`.
 5. Capture one real job posting from Chrome.
-6. Confirm the intake JSON moves to `processed` and that resume artifacts appear in `resumes/`.
+6. Confirm the intake JSON is staged in `pending`.
+7. Click `Process Queue` in the extension popup.
+8. Confirm the intake JSON moves to `processed` and that resume artifacts appear in `resumes/`.
 
 ## What To Check During The First Run
 
 - The service responds at `http://127.0.0.1:8765/health`.
 - The extension can post to `POST /intake`.
 - A normalized JSON is created in `job_queue/pending/`.
-- The background worker starts automatically.
+- The queued job remains in `pending` until you click `Process Queue`.
+- The background worker starts when you trigger a batch.
 - The worker uses the existing tailoring engine.
 - The intake file lands in `processed` or `failed`.
 

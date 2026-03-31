@@ -82,13 +82,16 @@ c:\Users\12485\OneDrive\Desktop\Python\Projects\Resume Automation System\resume-
 ## 9. Run Your First Real Test
 
 1. Open a job posting page in Chrome.
-2. Click `Send to Resume Tailor`.
-3. Watch the service logs.
+2. Click `Send to Resume Tailor` to queue the job.
+3. Confirm the pending count increases in the extension popup.
+4. Click `Process Queue` when you are ready to tailor the queued jobs.
+5. Watch the service logs.
 
 ## 10. Success Looks Like
 
 - The service prints the saved intake JSON path.
-- The intake file appears in `job_queue/pending/` and then moves to `job_queue/processed/`.
+- The intake file appears in `job_queue/pending/` and stays there until you click `Process Queue`.
+- After processing starts, the intake file moves to `job_queue/processed/`.
 - New files appear in `resumes/`:
   - `.docx`
   - `.pdf`

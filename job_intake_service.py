@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 from loguru import logger
@@ -34,13 +34,8 @@ def log_runtime_configuration() -> None:
 
 @asynccontextmanager
 async def app_lifespan(_: FastAPI):
-    """Start and stop the built-in queue worker alongside the API service."""
+    """Expose the API lifecycle while leaving queue processing as a manual action."""
     log_runtime_configuration()
-    try:
-        queue_processor.start()
-    except Exception as exc:
-        logger.exception("Failed to start the job queue worker: {}", exc)
-
     try:
         yield
     finally:
@@ -96,6 +91,21 @@ class IntakeResponse(BaseModel):
     queue_status: str
     tailoring_started: bool
     processing_mode: str
+    message: str
+
+
+class QueueStatusResponse(BaseModel):
+    """Return the number of staged jobs waiting in the pending queue."""
+
+    pending: int
+
+
+class ProcessBatchResponse(BaseModel):
+    """Confirm that the queue worker was asked to drain the pending batch."""
+
+    status: str
+    pending: int
+    worker_running: bool
     message: str
 
 
@@ -167,6 +177,11 @@ def build_output_path(record: IntakeRecord) -> Path:
     return output_path
 
 
+def get_pending_queue_count() -> int:
+    """Count staged intake JSON files that are still waiting in pending."""
+    return sum(1 for _ in QUEUE_DIR.glob("*.json"))
+
+
 def normalize_payload(payload: IntakePayload) -> IntakeRecord:
     """Convert raw browser data into the stable intake structure."""
     page_url = clean_single_line(payload.page_url)
@@ -199,6 +214,51 @@ def health_check() -> dict[str, object]:
     }
 
 
+@app.get("/queue-status", response_model=QueueStatusResponse)
+def queue_status() -> QueueStatusResponse:
+    """Expose the current pending queue depth for the local extension popup."""
+    return QueueStatusResponse(pending=get_pending_queue_count())
+
+
+@app.post("/process-batch", response_model=ProcessBatchResponse)
+def process_batch() -> ProcessBatchResponse:
+    """Wake the queue worker so it drains all currently staged pending jobs."""
+    pending = get_pending_queue_count()
+
+    if pending == 0:
+        return ProcessBatchResponse(
+            status="idle",
+            pending=0,
+            worker_running=queue_processor.is_running,
+            message="No pending jobs to process.",
+        )
+
+    try:
+        queue_processor.start()
+        queue_processor.notify()
+    except Exception as exc:
+        logger.exception("Failed to trigger batch processing: {}", exc)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to trigger batch processing.",
+        ) from exc
+
+    logger.info(
+        "Manual batch processing requested for {} pending intake file(s).",
+        pending,
+    )
+
+    message = (
+        f"Queue processing triggered for {pending} pending job(s)."
+    )
+    return ProcessBatchResponse(
+        status="processing_started",
+        pending=pending,
+        worker_running=queue_processor.is_running,
+        message=message,
+    )
+
+
 @app.post("/intake", response_model=IntakeResponse)
 def intake_job(payload: IntakePayload) -> IntakeResponse:
     """Receive a browser capture and stage it as a pending queue item."""
@@ -218,31 +278,13 @@ def intake_job(payload: IntakePayload) -> IntakeResponse:
     logger.info("Saved normalized intake JSON to {}", output_path)
     print(output_path, flush=True)
 
-    tailoring_started = False
-    message = "Capture saved. Tailoring queued in the background."
-    try:
-        queue_processor.start()
-        queue_processor.notify()
-        tailoring_started = queue_processor.is_running
-        logger.info(
-            "Queued intake file for background tailoring: {} (worker_running={})",
-            output_path,
-            tailoring_started,
-        )
-    except Exception as exc:
-        message = (
-            "Capture saved, but the background tailoring worker could not be started. "
-            "The intake file remains in pending."
-        )
-        logger.exception("Failed to queue background tailoring for {}: {}", output_path, exc)
-
     return IntakeResponse(
         status="saved",
         saved_path=str(output_path),
         queue_status="pending",
-        tailoring_started=tailoring_started,
-        processing_mode="background_worker",
-        message=message,
+        tailoring_started=False,
+        processing_mode="manual_batch_trigger",
+        message="Capture saved to the pending queue. Trigger a batch when you're ready to process it.",
     )
 
 

@@ -59,7 +59,7 @@ def clean_block_text(value: str | None) -> str:
 
 
 class JobQueueProcessor:
-    """Watch the pending intake folder and process jobs one at a time."""
+    """Process staged intake files one batch at a time when explicitly triggered."""
 
     def __init__(
         self,
@@ -109,10 +109,9 @@ class JobQueueProcessor:
         )
         self._thread.start()
         logger.info(
-            "Job queue worker started. Watching pending intake files in {}",
+            "Job queue worker started. Waiting for manual batch triggers for {}",
             self.pending_dir,
         )
-        self.notify()
 
     def stop(self, timeout: float = 5.0) -> None:
         """Request a graceful stop for the background worker."""
@@ -128,7 +127,7 @@ class JobQueueProcessor:
             logger.info("Job queue worker stopped.")
 
     def notify(self) -> None:
-        """Wake the worker so it can process newly staged jobs immediately."""
+        """Ask the worker to drain the current pending queue once."""
         self._wake_event.set()
 
     def describe_runtime_state(self) -> dict[str, object]:
@@ -145,17 +144,16 @@ class JobQueueProcessor:
         }
 
     def _run_loop(self) -> None:
-        """Process staged jobs continuously until the service shuts down."""
+        """Wait for explicit batch requests and then drain the pending queue."""
         while not self._stop_event.is_set():
-            processed_any = self._drain_pending_queue()
+            self._wake_event.wait()
+            self._wake_event.clear()
             if self._stop_event.is_set():
                 break
 
+            processed_any = self._drain_pending_queue()
             if processed_any:
-                continue
-
-            self._wake_event.wait(timeout=self.poll_interval)
-            self._wake_event.clear()
+                logger.info("Manual batch processing finished.")
 
     def _drain_pending_queue(self) -> bool:
         """Scan the pending directory and process any available intake files."""
