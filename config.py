@@ -74,7 +74,7 @@ SCRAPER_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.
 # ============================================================================
 # Claude API Settings
 # ============================================================================
-CLAUDE_MODEL = 'claude-haiku-4-5'  # Latest Haiku 4.5 alias
+CLAUDE_MODEL = 'claude-haiku-4-5-20251001'  # Latest Haiku 4.5 alias
 CLAUDE_MAX_TOKENS = 2000  # Max tokens for resume generation
 
 # Optional local candidate context used in tailoring prompts.
